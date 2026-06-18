@@ -43,7 +43,7 @@
   let _catalog = null;
   async function loadCatalog(path) {
     if (_catalog) return _catalog;
-    const res = await fetch(path || "../data/nfr-catalog.json");
+    const res = await fetch(path || "data/nfr-catalog.json");
     _catalog = await res.json();
     return _catalog;
   }

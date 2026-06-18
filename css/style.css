@@ -96,10 +96,10 @@ header.topbar nav a.active, header.topbar nav a:hover {
   width: 100%; padding: 0.45rem 0.55rem; background: var(--panel-2);
   border: 1px solid var(--line); color: var(--ink); border-radius: 8px; font-size: 0.9rem;
 }
-.seg { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.seg { display: flex; flex-wrap: wrap; gap: 0.3rem; }
 .seg button {
-  flex: 1; min-width: 0; padding: 0.35rem 0.4rem; font-size: 0.72rem;
-  background: var(--panel-2); border: 1px solid var(--line); color: var(--muted);
+  flex: 0 1 auto; padding: 0.35rem 0.6rem; font-size: 0.75rem;
+  background: var(--panel-2); border: 1px solid var(--line); color: var(--ink);
   border-radius: 7px; cursor: pointer; white-space: nowrap;
 }
 .seg button.active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); font-weight: 600; }
@@ -132,7 +132,7 @@ header.topbar nav a.active, header.topbar nav a:hover {
 
 pre.export {
   background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px;
-  padding: 1rem; overflow: auto; font-family: var(--mono); font-size: 0.8rem; color: #cbd5e1; max-height: 60vh;
+  padding: 1rem; overflow: auto; font-family: var(--mono); font-size: 0.82rem; color: var(--ink); max-height: 60vh; line-height: 1.6;
 }
 .hint { color: var(--muted); font-size: 0.85rem; }
 .row { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; }

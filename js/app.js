@@ -6,13 +6,14 @@
   const viewEl = document.getElementById("view");
 
   const VIEWS = [
+    { id: "overview",   label: "Overview",         mount: mountOverview },
     { id: "applicable", label: "Applicable NFRs", mount: mountApplicable },
     { id: "tradeoffs",  label: "Trade-offs",      mount: mountTradeoffs },
     { id: "scenarios",  label: "Scenarios",        mount: mountScenarios },
     { id: "export",     label: "Export",           mount: mountExport }
   ];
 
-  let current = null, activeId = "applicable";
+  let current = null, activeId = "overview";
 
   const esc = s => String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
   const whyTags = n => (n.fired && n.fired.length)
@@ -31,76 +32,162 @@
   tabsEl.querySelectorAll("a").forEach(a => a.addEventListener("click", e => { e.preventDefault(); switchTo(a.dataset.id); }));
 
   UI.renderContextRail(railEl, catalog, (ctx) => { if (current && current.onContext) current.onContext(ctx); });
+
+  // theme toggle (theme is pre-applied in index.html to avoid flash)
+  const themeBtn = document.getElementById("themeToggle");
+  function applyThemeIcon() {
+    const t = document.documentElement.getAttribute("data-theme") || "dark";
+    themeBtn.textContent = t === "dark" ? "☀ Light" : "🌙 Dark";
+  }
+  themeBtn.addEventListener("click", () => {
+    const next = (document.documentElement.getAttribute("data-theme") === "light") ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", next);
+    try { localStorage.setItem("nfr-theme", next); } catch (e) { /* ignore */ }
+    applyThemeIcon();
+  });
+  applyThemeIcon();
+
+  // parse an ISO string like "Performance Efficiency > Time Behaviour" into crumb HTML
+  function isoCrumb(iso) {
+    const parts = String(iso || "").split(">").map(s => s.trim()).filter(Boolean);
+    if (!parts.length) return "";
+    return parts.map((p, i) => i === parts.length - 1 ? `<b>${esc(p)}</b>` : esc(p)).join(" › ");
+  }
+
   switchTo(activeId);
 
-  // ============================ 1. APPLICABLE NFRs (sortable/filterable table) ============================
+  // ============================ 0. OVERVIEW (cross-dimension dashboard) ============================
+  function mountOverview(host) {
+    host.innerHTML = `
+      <div class="panel" style="margin-bottom:1rem">
+        <h2>Overview</h2>
+        <p class="hint">A cross-dimension summary for the current system context. Drill into any tab for detail.</p>
+        <div class="stat-grid" id="stats"></div>
+      </div>
+      <div class="panel" style="margin-bottom:1rem">
+        <h2>Coverage by quality dimension</h2>
+        <p class="hint">How strongly each ISO/IEC 25010 dimension applies to this system (sum of relevance across its NFRs).</p>
+        <div id="dims"></div>
+      </div>
+      <div class="layout" style="grid-template-columns:1fr 1fr">
+        <div class="panel"><h2>Top priorities</h2><div id="top"></div></div>
+        <div class="panel"><h2>Open risks (unresolved trade-offs)</h2><div id="risks"></div></div>
+      </div>`;
+    const statsEl = host.querySelector("#stats"), dimsEl = host.querySelector("#dims"), topEl = host.querySelector("#top"), risksEl = host.querySelector("#risks");
+
+    function render() {
+      const ctx = NFR.getContext();
+      const all = NFR.rankNfrs(catalog, ctx);
+      const relevant = all.filter(n => n.tier !== "low");
+      const high = all.filter(n => n.tier === "high"), med = all.filter(n => n.tier === "medium");
+      const conflicts = NFR.activeConflicts(all, "medium");
+      const pr = NFR.getPriorities();
+      const unresolved = conflicts.filter(e => !pr[e.key]);
+
+      statsEl.innerHTML = [
+        ["Relevant NFRs", relevant.length, "var(--accent)"],
+        ["High importance", high.length, "var(--good)"],
+        ["Medium importance", med.length, "var(--warn)"],
+        ["Trade-offs", conflicts.length, "var(--accent-2)"],
+        ["Unresolved", unresolved.length, unresolved.length ? "var(--bad)" : "var(--good)"]
+      ].map(([lbl,num,col]) => `<div class="stat"><div class="num" style="color:${col}">${num}</div><div class="lbl">${lbl}</div></div>`).join("");
+
+      const byCat = {};
+      catalog.categories.forEach(c => byCat[c.id] = { label: c.label, color: c.color, sum: 0, count: 0 });
+      all.forEach(n => { const b = byCat[n.category]; if (!b) return; b.sum += n.relevance; if (n.tier !== "low") b.count++; });
+      const maxSum = Math.max(0.001, ...Object.values(byCat).map(b => b.sum));
+      dimsEl.innerHTML = Object.values(byCat).sort((a,b)=>b.sum-a.sum).map(b => `
+        <div class="dim-row">
+          <div class="dim-name"><span class="catdot" style="background:${b.color}"></span>${esc(b.label)}</div>
+          <div class="meter"><i style="width:${Math.round(b.sum/maxSum*100)}%;background:${b.color}"></i></div>
+          <div class="dim-count">${b.count} NFR${b.count===1?"":"s"}</div>
+        </div>`).join("");
+
+      topEl.innerHTML = relevant.length
+        ? `<table class="tt"><tbody>${relevant.slice(0,6).map(n=>`<tr><td><b>${esc(n.name)}</b></td><td style="text-align:right"><span class="badge ${n.tier}">${n.tier} · ${n.score}</span></td></tr>`).join("")}</tbody></table>`
+        : `<p class="hint">No high/medium NFRs for this context.</p>`;
+
+      risksEl.innerHTML = unresolved.length
+        ? `<table class="tt"><tbody>${unresolved.map(e=>`<tr><td>${esc(e.a.name)} ↔ ${esc(e.b.name)}</td><td style="text-align:right"><span class="pill conflict">unresolved</span></td></tr>`).join("")}</tbody></table><p class="hint" style="margin-top:.5rem">Resolve these on the <b>Trade-offs</b> tab.</p>`
+        : (conflicts.length ? `<p class="hint">All ${conflicts.length} trade-offs resolved. ✓</p>` : `<p class="hint">No trade-off tensions for this context.</p>`);
+    }
+    render();
+    return { onContext: render };
+  }
+
+  // ============================ 1. APPLICABLE NFRs (grouped by dimension → subsections) ============================
   function mountApplicable(host) {
     host.innerHTML = `
       <div class="panel">
         <h2>Applicable NFRs</h2>
-        <p class="hint">Ranked for the system context on the left. Importance comes from explicit rules — open a row's <b>Why</b> to see exactly which context facts drove the score. Sort by any column; filter to focus.</p>
+        <p class="hint">Grouped by ISO/IEC 25010 quality dimension and ranked within each. Click a dimension to collapse it; click an NFR to expand its full detail — including the exact rules that drove its importance (no black box).</p>
         <div class="toolbar">
           <input type="text" id="q" class="grow" placeholder="Filter by name / alias…">
-          <select id="cat"><option value="">All categories</option>${catalog.categories.map(c=>`<option value="${c.id}">${esc(c.label)}</option>`).join("")}</select>
+          <select id="cat"><option value="">All dimensions</option>${catalog.categories.map(c=>`<option value="${c.id}">${esc(c.label)}</option>`).join("")}</select>
           <select id="tier"><option value="">All tiers</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select>
+          <button class="btn secondary" id="expandAll">Expand all</button>
         </div>
-        <table class="data"><thead><tr>
-          <th data-sort="name">NFR</th>
-          <th data-sort="category">Category</th>
-          <th data-sort="score">Importance</th>
-          <th>ISO 25010</th>
-          <th>Why</th>
-        </tr></thead><tbody id="tbody"></tbody></table>
+        <div id="groups"></div>
       </div>`;
-    const tbody = host.querySelector("#tbody");
-    const q = host.querySelector("#q"), catSel = host.querySelector("#cat"), tierSel = host.querySelector("#tier");
-    let sortKey = "score", sortDir = -1, open = {};
+    const groupsEl = host.querySelector("#groups");
+    const q = host.querySelector("#q"), catSel = host.querySelector("#cat"), tierSel = host.querySelector("#tier"), expandBtn = host.querySelector("#expandAll");
+    const collapsed = {}, openSub = {};
+    let allOpen = false;
 
-    function rows() {
+    function filtered() {
       let r = NFR.rankNfrs(catalog, NFR.getContext());
       const text = q.value.trim().toLowerCase();
       if (text) r = r.filter(n => (n.name+" "+(n.aliases||[]).join(" ")).toLowerCase().includes(text));
       if (catSel.value) r = r.filter(n => n.category === catSel.value);
       if (tierSel.value) r = r.filter(n => n.tier === tierSel.value);
-      r.sort((a,b) => {
-        let av = a[sortKey], bv = b[sortKey];
-        if (sortKey === "category") { av = NFR.categoryLabel(catalog,a.category); bv = NFR.categoryLabel(catalog,b.category); }
-        if (typeof av === "string") return sortDir * av.localeCompare(bv);
-        return sortDir * (av - bv);
-      });
       return r;
     }
-    function render() {
-      const maxScore = Math.max(1, ...NFR.rankNfrs(catalog, NFR.getContext()).map(n=>n.score));
-      tbody.innerHTML = rows().map(n => {
-        const color = NFR.categoryColor(catalog, n.category);
-        const main = `<tr class="row-main" data-id="${n.id}">
-          <td><b>${esc(n.name)}</b><div class="kv">${(n.aliases||[]).slice(0,2).map(esc).join(", ")}</div></td>
-          <td><span class="catdot" style="background:${color}"></span>${esc(NFR.categoryLabel(catalog,n.category))}</td>
-          <td><span class="score-bar"><i style="width:${Math.round(n.score/maxScore*100)}%;background:${color}"></i></span><span class="badge ${n.tier}">${n.tier} · ${n.score}</span></td>
-          <td class="kv">${esc(n.iso)}</td>
-          <td><button class="btn secondary" data-why="${n.id}" style="padding:.2rem .5rem;font-size:.75rem">${open[n.id]?"Hide":"Why"}</button></td>
-        </tr>`;
-        const detail = open[n.id] ? `<tr class="row-detail"><td colspan="5">
-          <div class="why"><b>Why it applies:</b> ${whyTags(n)}</div>
-          <h3>Measure</h3><div class="mono">${esc(n.scenarioTemplate.stimulus)} → <b>${esc(n.scenarioTemplate.response)}</b> → <b>${esc(n.scenarioTemplate.measure)}</b></div>
-          <h3>Metrics</h3><div class="hint">${n.metrics.map(esc).join(" · ")}</div>
-          <h3>Tactics</h3><div class="hint">${n.tactics.map(esc).join(" · ")}</div>
-          <h3>Fitness function</h3><div class="mono">${esc(n.fitnessFunction)}</div>
-          ${(n.conflicts_with||[]).length?`<h3>Conflicts with</h3>${n.conflicts_with.map(c=>`<span class="tag">${esc(c)}</span>`).join("")}`:""}
-        </td></tr>` : "";
-        return main + detail;
-      }).join("");
-      tbody.querySelectorAll("button[data-why]").forEach(b => b.addEventListener("click", e => {
-        e.stopPropagation(); const id = b.dataset.why; open[id] = !open[id]; render();
-      }));
-      tbody.querySelectorAll("tr.row-main").forEach(tr => tr.addEventListener("click", () => { const id = tr.dataset.id; open[id] = !open[id]; render(); }));
+    function subDetail(n) {
+      return `<div class="sub-detail">
+        <div class="iso-crumb">ISO/IEC 25010: ${isoCrumb(n.iso)}</div>
+        <h4>Why it applies</h4><div class="why">${whyTags(n)}</div>
+        <h4>Measurable scenario</h4><div class="mono">${esc(n.scenarioTemplate.stimulus)} → <b>${esc(n.scenarioTemplate.response)}</b> → <b>${esc(n.scenarioTemplate.measure)}</b></div>
+        <h4>Metrics</h4><div class="hint">${n.metrics.map(esc).join(" · ")}</div>
+        <h4>Tactics</h4><div class="hint">${n.tactics.map(esc).join(" · ")}</div>
+        <h4>Fitness function</h4><div class="mono">${esc(n.fitnessFunction)}</div>
+        ${(n.conflicts_with||[]).length?`<h4>Conflicts with</h4>${n.conflicts_with.map(c=>`<span class="tag">${esc(c)}</span>`).join("")}`:""}
+        ${(n.reinforces||[]).length?`<h4>Reinforces</h4>${n.reinforces.map(c=>`<span class="tag">${esc(c)}</span>`).join("")}`:""}
+      </div>`;
     }
-    host.querySelectorAll("th[data-sort]").forEach(th => th.addEventListener("click", () => {
-      const k = th.dataset.sort; if (sortKey === k) sortDir *= -1; else { sortKey = k; sortDir = (k === "score") ? -1 : 1; }
-      host.querySelectorAll("th[data-sort]").forEach(x => { const base = x.textContent.replace(/[ ▲▼]+$/,""); x.innerHTML = base + (x.dataset.sort===sortKey ? ` <span class="arrow">${sortDir<0?"▼":"▲"}</span>` : ""); });
-      render();
-    }));
+    function render() {
+      const rows = filtered();
+      const cats = catalog.categories.map(c => Object.assign({}, c, { items: rows.filter(n => n.category === c.id) }))
+        .filter(c => c.items.length)
+        .sort((a,b) => Math.max.apply(null, b.items.map(n=>n.score)) - Math.max.apply(null, a.items.map(n=>n.score)));
+      if (!cats.length) { groupsEl.innerHTML = `<p class="hint">No NFRs match the current filters.</p>`; return; }
+      groupsEl.innerHTML = cats.map(c => {
+        const isCol = collapsed[c.id];
+        const tiers = { high:0, medium:0, low:0 }; c.items.forEach(n => tiers[n.tier]++);
+        const meta = `${c.items.length} NFR${c.items.length===1?"":"s"} · ${tiers.high} high / ${tiers.medium} med`;
+        const subs = c.items.map(n => {
+          const isOpen = allOpen || openSub[n.id];
+          return `<div class="subsection">
+            <div class="sub-head" data-sub="${n.id}">
+              <span class="chev" style="${isOpen?'':'transform:rotate(-90deg)'}">▾</span>
+              <span class="sub-name">${esc(n.name)}</span>
+              <span class="badge ${n.tier}">${n.tier} · ${n.score}</span>
+              <span class="iso-crumb" style="margin-left:auto">${(n.aliases||[]).slice(0,2).map(esc).join(", ")}</span>
+            </div>
+            ${isOpen ? subDetail(n) : ""}
+          </div>`;
+        }).join("");
+        return `<div class="section ${isCol?'collapsed':''}">
+          <div class="section-head" data-cat="${c.id}">
+            <span class="chev">▾</span><span class="catdot" style="background:${c.color}"></span>
+            <span class="s-title">${esc(c.label)}</span><span class="s-meta">${meta}</span>
+          </div>
+          <div class="section-body">${subs}</div>
+        </div>`;
+      }).join("");
+      groupsEl.querySelectorAll(".section-head").forEach(h => h.addEventListener("click", () => { const id=h.dataset.cat; collapsed[id]=!collapsed[id]; render(); }));
+      groupsEl.querySelectorAll(".sub-head").forEach(h => h.addEventListener("click", () => { const id=h.dataset.sub; openSub[id]=!openSub[id]; allOpen=false; render(); }));
+    }
+    expandBtn.addEventListener("click", () => { allOpen = !allOpen; expandBtn.textContent = allOpen ? "Collapse all" : "Expand all"; render(); });
     [q, catSel, tierSel].forEach(el => el.addEventListener("input", render));
     render();
     return { onContext: render };

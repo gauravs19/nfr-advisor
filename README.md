@@ -8,11 +8,12 @@ Grounded in **ISO/IEC 25010**, the **arc42 Quality Model (Q42)**, and **ATAM**. 
 
 ## How to use it
 
-One page, one persistent **System context** rail on the left, and four views as tabs. Set the context once — every tab reacts to it live.
+One page, one persistent **System context** rail on the left, and five views as tabs. Set the context once — every tab reacts to it live. A **dark / light theme toggle** (top right) is remembered across sessions.
 
 | Tab | What it does |
 |-----|--------------|
-| **Applicable NFRs** | A sortable, filterable table of NFRs ranked by importance for the context. Every row's **Why** shows exactly which context facts drove the score (no black box) — plus ISO mapping, metrics, tactics, and a fitness function. |
+| **Overview** | A cross-dimension dashboard: headline stats (relevant / high / medium / trade-offs / unresolved), a **coverage-by-quality-dimension** chart, top priorities, and open risks. |
+| **Applicable NFRs** | NFRs grouped into collapsible **ISO/IEC 25010 dimension sections**, ranked within each. Expand any NFR for the ISO hierarchy crumb, the **Why** (exact rules that drove its score — no black box), measurable scenario, metrics, tactics, fitness function, and conflict/reinforce links. |
 | **Trade-offs** | An N×N **trade-off matrix** of the relevant NFRs (latency ↔ consistency, availability ↔ cost…). Click a conflict cell to prioritize one quality over another; each resolved conflict becomes an ADR. |
 | **Scenarios** | Each NFR → a measurable `stimulus → response → measure` scenario (arc42 Q42 / ATAM). |
 | **Export** | Generates `nfrs.yaml` (machine-readable), `nfrs.md` (human spec), and trade-off **ADRs**. |

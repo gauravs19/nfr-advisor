@@ -5,12 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NFR Advisor</title>
   <link rel="icon" href="data:," />
+  <script>
+    /* apply saved theme before first paint to avoid flash */
+    (function () { try { document.documentElement.setAttribute("data-theme", localStorage.getItem("nfr-theme") || "dark"); } catch (e) { document.documentElement.setAttribute("data-theme", "dark"); } })();
+  </script>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
   <header class="topbar">
     <div class="brand">NFR&nbsp;<span>Advisor</span></div>
     <nav id="tabs"></nav>
+    <button class="theme-toggle" id="themeToggle" title="Toggle light / dark" aria-label="Toggle theme"></button>
   </header>
   <div class="wrap">
     <div class="layout">

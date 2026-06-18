@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NFR Advisor · Trade-offs</title>
+  <link rel="stylesheet" href="../css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.9.4/lib/p5.min.js"></script>
+</head>
+<body>
+  <script src="../js/engine.js"></script>
+  <script src="../js/ui.js"></script>
+  <div class="wrap">
+    <div class="layout">
+      <aside class="panel" id="rail"></aside>
+      <main>
+        <div class="panel" style="margin-bottom:1rem">
+          <h2>Trade-off graph</h2>
+          <p class="hint">Conflicts between the currently-relevant NFRs (medium tier and above). A red edge is an unresolved trade-off; resolve it below by choosing which quality wins — that decision becomes an ADR on export.</p>
+          <div class="canvas-host" id="host"></div>
+        </div>
+        <div class="panel">
+          <h2>Resolve trade-offs</h2>
+          <div id="edges"></div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../js/sim-conflict.js"></script>
+</body>
+</html>

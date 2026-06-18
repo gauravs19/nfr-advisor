@@ -1,0 +1,400 @@
+{
+  "version": "1.0",
+  "meta": {
+    "name": "NFR Advisor Catalog",
+    "basedOn": ["ISO/IEC 25010:2023", "arc42 Quality Model (Q42)", "ATAM"],
+    "note": "Relevance rules map a system context to applicable NFRs. Edges capture classic architectural trade-offs."
+  },
+  "categories": [
+    { "id": "performance",   "label": "Performance Efficiency", "color": "#3b82f6" },
+    { "id": "reliability",    "label": "Reliability",            "color": "#22c55e" },
+    { "id": "security",       "label": "Security",               "color": "#ef4444" },
+    { "id": "maintainability","label": "Maintainability",        "color": "#a855f7" },
+    { "id": "usability",      "label": "Usability",              "color": "#eab308" },
+    { "id": "compatibility",  "label": "Compatibility",          "color": "#06b6d4" },
+    { "id": "portability",    "label": "Portability",            "color": "#f97316" },
+    { "id": "operability",    "label": "Operability (modern)",   "color": "#14b8a6" }
+  ],
+  "contextDimensions": [
+    { "id": "domain", "label": "Domain", "type": "enum",
+      "options": ["internal-tool", "web-app", "ecommerce", "fintech-trading", "healthcare", "iot", "data-platform", "gaming"] },
+    { "id": "userScale", "label": "User Scale", "type": "ordinal",
+      "options": ["under-1k", "1k-100k", "100k-1M", "over-1M"] },
+    { "id": "latencySensitivity", "label": "Latency Sensitivity", "type": "ordinal",
+      "options": ["low", "medium", "high"] },
+    { "id": "dataSensitivity", "label": "Data Sensitivity", "type": "ordinal",
+      "options": ["public", "internal", "pii", "pci", "phi"] },
+    { "id": "availabilityTarget", "label": "Availability Target", "type": "ordinal",
+      "options": ["99", "99.9", "99.99", "99.999"] },
+    { "id": "teamMaturity", "label": "Team Maturity", "type": "ordinal",
+      "options": ["junior", "mixed", "senior"] },
+    { "id": "budget", "label": "Budget", "type": "ordinal",
+      "options": ["lean", "moderate", "generous"] },
+    { "id": "deployment", "label": "Deployment", "type": "enum",
+      "options": ["single-region", "multi-region", "edge", "on-prem"] }
+  ],
+  "nfrs": [
+    {
+      "id": "latency", "name": "Low Latency / Responsiveness", "category": "performance",
+      "iso": "Performance Efficiency > Time Behaviour",
+      "aliases": ["responsiveness", "response time"],
+      "metrics": ["p95 response time", "p99 response time"],
+      "scenarioTemplate": { "stimulus": "A user submits a request under normal load", "response": "The system returns a complete response", "measure": "p95 latency < 200 ms" },
+      "tactics": ["Caching (CDN, in-memory)", "Read replicas", "Async/non-blocking I/O", "Precompute / materialized views"],
+      "fitnessFunction": "Load test asserts p95 < target under N concurrent users",
+      "baseScore": 1,
+      "conflicts_with": ["consistency", "auditability", "confidentiality"],
+      "reinforces": ["scalability"],
+      "rules": [
+        { "when": { "latencySensitivity": "high" }, "weight": 4 },
+        { "when": { "latencySensitivity": "medium" }, "weight": 2 },
+        { "when": { "domain": "fintech-trading" }, "weight": 4 },
+        { "when": { "domain": "gaming" }, "weight": 3 },
+        { "when": { "domain": "ecommerce" }, "weight": 2 }
+      ]
+    },
+    {
+      "id": "throughput", "name": "Throughput", "category": "performance",
+      "iso": "Performance Efficiency > Capacity",
+      "aliases": ["TPS", "requests per second"],
+      "metrics": ["transactions/sec", "requests/sec sustained"],
+      "scenarioTemplate": { "stimulus": "Peak traffic arrives", "response": "The system processes requests without queue growth", "measure": "Sustains X TPS at < target latency" },
+      "tactics": ["Horizontal scaling", "Load balancing", "Batching", "Backpressure"],
+      "fitnessFunction": "Soak test sustains target TPS for 1h without degradation",
+      "baseScore": 1,
+      "conflicts_with": [],
+      "reinforces": ["scalability"],
+      "rules": [
+        { "when": { "userScale": "over-1M" }, "weight": 4 },
+        { "when": { "userScale": "100k-1M" }, "weight": 3 },
+        { "when": { "domain": "data-platform" }, "weight": 3 },
+        { "when": { "domain": "iot" }, "weight": 3 }
+      ]
+    },
+    {
+      "id": "scalability", "name": "Scalability", "category": "performance",
+      "iso": "Performance Efficiency > Capacity",
+      "aliases": ["elasticity"],
+      "metrics": ["cost per additional 1k users", "scale-out time"],
+      "scenarioTemplate": { "stimulus": "Demand doubles within an hour", "response": "Capacity scales out automatically", "measure": "No SLA breach; scale-out < 5 min" },
+      "tactics": ["Stateless services", "Auto-scaling groups", "Sharding / partitioning", "Event-driven decoupling"],
+      "fitnessFunction": "Chaos/scale test: 2x load triggers auto-scale within bound",
+      "baseScore": 1,
+      "conflicts_with": ["consistency"],
+      "reinforces": ["availability", "throughput"],
+      "rules": [
+        { "when": { "userScale": "over-1M" }, "weight": 4 },
+        { "when": { "userScale": "100k-1M" }, "weight": 3 },
+        { "when": { "domain": "ecommerce" }, "weight": 2 },
+        { "when": { "domain": "gaming" }, "weight": 2 }
+      ]
+    },
+    {
+      "id": "availability", "name": "Availability", "category": "reliability",
+      "iso": "Reliability > Availability",
+      "aliases": ["uptime"],
+      "metrics": ["uptime %", "annual downtime budget"],
+      "scenarioTemplate": { "stimulus": "A node or AZ fails", "response": "Traffic fails over with no outage", "measure": "Meets availability SLO (e.g. 99.99%)" },
+      "tactics": ["Redundancy (active-active)", "Health checks + failover", "Multi-AZ / multi-region", "Graceful degradation"],
+      "fitnessFunction": "Game-day: kill an instance, verify SLO holds",
+      "baseScore": 1,
+      "conflicts_with": ["cost-efficiency", "consistency"],
+      "reinforces": ["fault-tolerance"],
+      "rules": [
+        { "when": { "availabilityTarget": "99.999" }, "weight": 5 },
+        { "when": { "availabilityTarget": "99.99" }, "weight": 4 },
+        { "when": { "availabilityTarget": "99.9" }, "weight": 2 },
+        { "when": { "domain": "ecommerce" }, "weight": 2 },
+        { "when": { "domain": "healthcare" }, "weight": 3 },
+        { "when": { "domain": "fintech-trading" }, "weight": 3 }
+      ]
+    },
+    {
+      "id": "fault-tolerance", "name": "Fault Tolerance / Resilience", "category": "reliability",
+      "iso": "Reliability > Fault Tolerance",
+      "aliases": ["resilience"],
+      "metrics": ["blast radius", "% requests served during partial outage"],
+      "scenarioTemplate": { "stimulus": "A downstream dependency times out", "response": "The system isolates the failure and degrades gracefully", "measure": "Core flows stay up; no cascading failure" },
+      "tactics": ["Circuit breakers", "Bulkheads", "Retries with backoff", "Fallbacks / default responses"],
+      "fitnessFunction": "Fault-injection test confirms no cascading failure",
+      "baseScore": 1,
+      "conflicts_with": ["latency"],
+      "reinforces": ["availability", "recoverability"],
+      "rules": [
+        { "when": { "deployment": "multi-region" }, "weight": 2 },
+        { "when": { "availabilityTarget": "99.99" }, "weight": 3 },
+        { "when": { "availabilityTarget": "99.999" }, "weight": 4 },
+        { "when": { "domain": "iot" }, "weight": 2 }
+      ]
+    },
+    {
+      "id": "recoverability", "name": "Recoverability / DR", "category": "reliability",
+      "iso": "Reliability > Recoverability",
+      "aliases": ["disaster recovery", "RTO/RPO"],
+      "metrics": ["RTO", "RPO"],
+      "scenarioTemplate": { "stimulus": "A region is lost", "response": "Service is restored from backups/replicas", "measure": "RTO < 1h, RPO < 5 min" },
+      "tactics": ["Automated backups", "Cross-region replication", "Runbooks + restore drills", "Infrastructure as code"],
+      "fitnessFunction": "Quarterly restore drill meets RTO/RPO",
+      "baseScore": 1,
+      "conflicts_with": ["cost-efficiency"],
+      "reinforces": ["availability"],
+      "rules": [
+        { "when": { "dataSensitivity": "pci" }, "weight": 2 },
+        { "when": { "dataSensitivity": "phi" }, "weight": 3 },
+        { "when": { "domain": "fintech-trading" }, "weight": 3 },
+        { "when": { "domain": "healthcare" }, "weight": 3 },
+        { "when": { "availabilityTarget": "99.999" }, "weight": 2 }
+      ]
+    },
+    {
+      "id": "confidentiality", "name": "Confidentiality", "category": "security",
+      "iso": "Security > Confidentiality",
+      "aliases": ["data protection", "encryption"],
+      "metrics": ["% data encrypted at rest/in transit", "secrets rotation interval"],
+      "scenarioTemplate": { "stimulus": "An attacker intercepts traffic or storage", "response": "Data remains unintelligible", "measure": "All sensitive data encrypted (TLS 1.3, AES-256)" },
+      "tactics": ["Encryption at rest & in transit", "Secrets management / KMS", "Least-privilege access", "Tokenization"],
+      "fitnessFunction": "Scanner verifies no plaintext sensitive data; TLS enforced",
+      "baseScore": 1,
+      "conflicts_with": ["latency", "learnability"],
+      "reinforces": ["integrity", "auditability"],
+      "rules": [
+        { "when": { "dataSensitivity": "pii" }, "weight": 3 },
+        { "when": { "dataSensitivity": "pci" }, "weight": 4 },
+        { "when": { "dataSensitivity": "phi" }, "weight": 5 },
+        { "when": { "domain": "healthcare" }, "weight": 2 },
+        { "when": { "domain": "fintech-trading" }, "weight": 2 }
+      ]
+    },
+    {
+      "id": "integrity", "name": "Integrity", "category": "security",
+      "iso": "Security > Integrity",
+      "aliases": ["tamper resistance"],
+      "metrics": ["% mutations validated/signed"],
+      "scenarioTemplate": { "stimulus": "A malicious actor attempts to tamper with data", "response": "The change is rejected or detected", "measure": "All writes authorized & validated; tamper detectable" },
+      "tactics": ["Input validation", "Signed messages / checksums", "Append-only audit logs", "Idempotency keys"],
+      "fitnessFunction": "Security test: tampered payloads are rejected",
+      "baseScore": 1,
+      "conflicts_with": ["latency"],
+      "reinforces": ["confidentiality", "auditability"],
+      "rules": [
+        { "when": { "dataSensitivity": "pci" }, "weight": 3 },
+        { "when": { "dataSensitivity": "phi" }, "weight": 3 },
+        { "when": { "domain": "fintech-trading" }, "weight": 3 },
+        { "when": { "domain": "data-platform" }, "weight": 2 }
+      ]
+    },
+    {
+      "id": "authz", "name": "Authentication & Authorization", "category": "security",
+      "iso": "Security > Accountability / Authenticity",
+      "aliases": ["access control", "identity", "RBAC"],
+      "metrics": ["MFA coverage", "% endpoints behind authz"],
+      "scenarioTemplate": { "stimulus": "A user requests a protected resource", "response": "Access is granted only with valid identity + permission", "measure": "100% protected endpoints enforce authz; MFA on privileged" },
+      "tactics": ["OAuth2 / OIDC", "RBAC / ABAC", "Short-lived tokens", "Zero-trust boundaries"],
+      "fitnessFunction": "Auth tests: unauthenticated/forbidden requests get 401/403",
+      "baseScore": 1,
+      "conflicts_with": ["learnability"],
+      "reinforces": ["confidentiality", "auditability"],
+      "rules": [
+        { "when": { "dataSensitivity": "pii" }, "weight": 2 },
+        { "when": { "dataSensitivity": "pci" }, "weight": 3 },
+        { "when": { "dataSensitivity": "phi" }, "weight": 3 },
+        { "when": { "domain": "internal-tool" }, "weight": -1 }
+      ]
+    },
+    {
+      "id": "auditability", "name": "Auditability / Accountability", "category": "security",
+      "iso": "Security > Accountability",
+      "aliases": ["audit trail", "traceability"],
+      "metrics": ["% sensitive actions logged", "log retention period"],
+      "scenarioTemplate": { "stimulus": "A compliance officer investigates an action", "response": "A complete, immutable trail is available", "measure": "Every sensitive action attributable; logs retained per policy" },
+      "tactics": ["Append-only audit log", "Correlation IDs", "Tamper-evident storage", "Retention policies"],
+      "fitnessFunction": "Verify sensitive actions produce immutable audit entries",
+      "baseScore": 0,
+      "conflicts_with": ["latency"],
+      "reinforces": ["integrity"],
+      "rules": [
+        { "when": { "dataSensitivity": "pci" }, "weight": 3 },
+        { "when": { "dataSensitivity": "phi" }, "weight": 4 },
+        { "when": { "domain": "fintech-trading" }, "weight": 3 },
+        { "when": { "domain": "healthcare" }, "weight": 3 }
+      ]
+    },
+    {
+      "id": "modularity", "name": "Modularity", "category": "maintainability",
+      "iso": "Maintainability > Modularity",
+      "aliases": ["low coupling", "separation of concerns"],
+      "metrics": ["coupling/cohesion metrics", "module dependency cycles"],
+      "scenarioTemplate": { "stimulus": "A developer changes one module", "response": "No unrelated module needs modification", "measure": "Change is isolated; no dependency cycles introduced" },
+      "tactics": ["Clear bounded contexts", "Dependency inversion", "Hexagonal/ports-adapters", "API contracts"],
+      "fitnessFunction": "ArchUnit: no forbidden dependencies / cycles",
+      "baseScore": 1,
+      "conflicts_with": ["latency"],
+      "reinforces": ["testability", "modifiability"],
+      "rules": [
+        { "when": { "teamMaturity": "senior" }, "weight": 1 },
+        { "when": { "domain": "data-platform" }, "weight": 1 },
+        { "when": { "userScale": "over-1M" }, "weight": 1 }
+      ]
+    },
+    {
+      "id": "testability", "name": "Testability", "category": "maintainability",
+      "iso": "Maintainability > Testability",
+      "aliases": ["test coverage"],
+      "metrics": ["coverage %", "% critical paths under test"],
+      "scenarioTemplate": { "stimulus": "A change is committed", "response": "Automated tests verify behaviour", "measure": "Critical paths covered; CI gate enforced" },
+      "tactics": ["Dependency injection", "Test doubles / contract tests", "Deterministic interfaces", "Test pyramid"],
+      "fitnessFunction": "CI fails below coverage threshold on critical paths",
+      "baseScore": 1,
+      "conflicts_with": [],
+      "reinforces": ["modifiability", "modularity"],
+      "rules": [
+        { "when": { "teamMaturity": "junior" }, "weight": 2 },
+        { "when": { "teamMaturity": "mixed" }, "weight": 1 },
+        { "when": { "domain": "healthcare" }, "weight": 1 }
+      ]
+    },
+    {
+      "id": "modifiability", "name": "Modifiability / Evolvability", "category": "maintainability",
+      "iso": "Maintainability > Modifiability",
+      "aliases": ["changeability", "flexibility"],
+      "metrics": ["lead time for change", "change failure rate"],
+      "scenarioTemplate": { "stimulus": "A new business rule must be added", "response": "It is implemented and shipped quickly and safely", "measure": "Lead time within target; low change-failure rate" },
+      "tactics": ["Feature flags", "Config over code", "Strangler-fig migration", "Anti-corruption layers"],
+      "fitnessFunction": "DORA metrics tracked; lead-time within SLO",
+      "baseScore": 1,
+      "conflicts_with": ["latency"],
+      "reinforces": ["modularity", "testability"],
+      "rules": [
+        { "when": { "domain": "web-app" }, "weight": 1 },
+        { "when": { "domain": "internal-tool" }, "weight": 1 },
+        { "when": { "budget": "lean" }, "weight": 1 }
+      ]
+    },
+    {
+      "id": "accessibility", "name": "Accessibility", "category": "usability",
+      "iso": "Usability > Accessibility",
+      "aliases": ["a11y", "WCAG"],
+      "metrics": ["WCAG 2.2 AA conformance %"],
+      "scenarioTemplate": { "stimulus": "A user relying on assistive tech navigates the app", "response": "All functions are operable", "measure": "WCAG 2.2 AA on critical journeys" },
+      "tactics": ["Semantic HTML / ARIA", "Keyboard navigation", "Contrast & scaling", "Automated a11y linting"],
+      "fitnessFunction": "axe-core CI scan passes on key pages",
+      "baseScore": 0,
+      "conflicts_with": [],
+      "reinforces": ["learnability"],
+      "rules": [
+        { "when": { "domain": "web-app" }, "weight": 2 },
+        { "when": { "domain": "ecommerce" }, "weight": 2 },
+        { "when": { "domain": "healthcare" }, "weight": 2 },
+        { "when": { "domain": "internal-tool" }, "weight": -1 }
+      ]
+    },
+    {
+      "id": "learnability", "name": "Learnability / Ease of Use", "category": "usability",
+      "iso": "Usability > Learnability",
+      "aliases": ["UX", "ease of use"],
+      "metrics": ["time-to-first-success", "task completion rate"],
+      "scenarioTemplate": { "stimulus": "A first-time user attempts a core task", "response": "They complete it without help", "measure": "Task completion > 90%; time-to-first-success < target" },
+      "tactics": ["Progressive disclosure", "Sensible defaults", "Inline guidance", "Consistent patterns"],
+      "fitnessFunction": "Usability test: target completion rate met",
+      "baseScore": 0,
+      "conflicts_with": ["confidentiality", "authz"],
+      "reinforces": ["accessibility"],
+      "rules": [
+        { "when": { "domain": "ecommerce" }, "weight": 3 },
+        { "when": { "domain": "gaming" }, "weight": 2 },
+        { "when": { "domain": "web-app" }, "weight": 2 },
+        { "when": { "userScale": "over-1M" }, "weight": 1 }
+      ]
+    },
+    {
+      "id": "interoperability", "name": "Interoperability", "category": "compatibility",
+      "iso": "Compatibility > Interoperability",
+      "aliases": ["integration", "standards compliance"],
+      "metrics": ["# standard interfaces supported", "contract test pass rate"],
+      "scenarioTemplate": { "stimulus": "A partner system integrates via the API", "response": "It exchanges data correctly using standard contracts", "measure": "Conforms to published schema; contract tests green" },
+      "tactics": ["Open standards (REST/OpenAPI, gRPC, FHIR)", "Versioned contracts", "Schema registry", "Anti-corruption layer"],
+      "fitnessFunction": "Contract tests against published schema pass",
+      "baseScore": 0,
+      "conflicts_with": [],
+      "reinforces": ["modifiability"],
+      "rules": [
+        { "when": { "domain": "healthcare" }, "weight": 3 },
+        { "when": { "domain": "data-platform" }, "weight": 2 },
+        { "when": { "domain": "iot" }, "weight": 2 },
+        { "when": { "domain": "fintech-trading" }, "weight": 2 }
+      ]
+    },
+    {
+      "id": "portability", "name": "Portability / Deployability", "category": "portability",
+      "iso": "Portability > Adaptability / Installability",
+      "aliases": ["cloud-agnostic", "deployability"],
+      "metrics": ["# target environments", "deploy time"],
+      "scenarioTemplate": { "stimulus": "The system must run in a new environment", "response": "It deploys with config-only changes", "measure": "Deploys to target env without code change" },
+      "tactics": ["Containerization", "12-factor config", "Infra as code", "Avoid vendor lock-in"],
+      "fitnessFunction": "Pipeline deploys identical artifact to 2+ environments",
+      "baseScore": 0,
+      "conflicts_with": ["latency"],
+      "reinforces": ["modifiability"],
+      "rules": [
+        { "when": { "deployment": "on-prem" }, "weight": 3 },
+        { "when": { "deployment": "multi-region" }, "weight": 1 },
+        { "when": { "domain": "iot" }, "weight": 2 }
+      ]
+    },
+    {
+      "id": "observability", "name": "Observability", "category": "operability",
+      "iso": "arc42 (modern operability)",
+      "aliases": ["monitoring", "telemetry"],
+      "metrics": ["MTTD", "% services with traces/metrics/logs"],
+      "scenarioTemplate": { "stimulus": "An incident occurs in production", "response": "Operators locate the root cause quickly", "measure": "MTTD < target; golden signals dashboarded" },
+      "tactics": ["Structured logging", "Metrics (RED/USE)", "Distributed tracing", "SLO-based alerting"],
+      "fitnessFunction": "Every service emits the three pillars; alerts tied to SLOs",
+      "baseScore": 1,
+      "conflicts_with": [],
+      "reinforces": ["recoverability", "fault-tolerance"],
+      "rules": [
+        { "when": { "userScale": "100k-1M" }, "weight": 2 },
+        { "when": { "userScale": "over-1M" }, "weight": 3 },
+        { "when": { "availabilityTarget": "99.99" }, "weight": 2 },
+        { "when": { "availabilityTarget": "99.999" }, "weight": 3 },
+        { "when": { "deployment": "multi-region" }, "weight": 1 }
+      ]
+    },
+    {
+      "id": "cost-efficiency", "name": "Cost Efficiency", "category": "operability",
+      "iso": "arc42 (modern operability)",
+      "aliases": ["FinOps", "TCO"],
+      "metrics": ["cost per transaction", "infra cost / revenue"],
+      "scenarioTemplate": { "stimulus": "Traffic drops off-peak", "response": "Resource cost scales down proportionally", "measure": "Cost-per-transaction within budget; no idle waste" },
+      "tactics": ["Auto-scaling to zero", "Right-sizing", "Spot/reserved capacity", "Cost dashboards / budgets"],
+      "fitnessFunction": "Cost-per-transaction tracked; budget alert configured",
+      "baseScore": 0,
+      "conflicts_with": ["availability", "recoverability"],
+      "reinforces": [],
+      "rules": [
+        { "when": { "budget": "lean" }, "weight": 3 },
+        { "when": { "budget": "moderate" }, "weight": 1 },
+        { "when": { "domain": "internal-tool" }, "weight": 1 },
+        { "when": { "userScale": "over-1M" }, "weight": 1 }
+      ]
+    },
+    {
+      "id": "consistency", "name": "Data Consistency", "category": "reliability",
+      "iso": "Reliability / Functional correctness",
+      "aliases": ["transactional integrity", "ACID"],
+      "metrics": ["% operations strongly consistent", "stale-read window"],
+      "scenarioTemplate": { "stimulus": "Concurrent writes hit the same data", "response": "The system preserves the chosen consistency guarantee", "measure": "No lost updates; staleness within bound" },
+      "tactics": ["Transactions / SAGA", "Idempotency", "Strong vs eventual choice per aggregate", "Conflict resolution"],
+      "fitnessFunction": "Concurrency test: no lost updates beyond declared model",
+      "baseScore": 0,
+      "conflicts_with": ["latency", "scalability", "availability"],
+      "reinforces": ["integrity"],
+      "rules": [
+        { "when": { "domain": "fintech-trading" }, "weight": 4 },
+        { "when": { "domain": "ecommerce" }, "weight": 2 },
+        { "when": { "dataSensitivity": "pci" }, "weight": 2 },
+        { "when": { "domain": "data-platform" }, "weight": 2 }
+      ]
+    }
+  ]
+}

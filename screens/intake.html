@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NFR Advisor · Context</title>
+  <link rel="stylesheet" href="../css/style.css" />
+</head>
+<body>
+  <script src="../js/engine.js"></script>
+  <script src="../js/ui.js"></script>
+  <div class="wrap">
+    <div class="layout">
+      <aside class="panel" id="rail"></aside>
+      <main class="panel">
+        <h2>Context summary &amp; preview</h2>
+        <p class="hint">Set the system context on the left. The advisor previews the highest-relevance NFRs below; the full animated picture is on the <a href="canvas.html">Relevance Canvas</a>.</p>
+        <div id="summary"></div>
+        <h3>Top applicable NFRs (preview)</h3>
+        <div class="cards" id="preview"></div>
+        <div class="row" style="margin-top:1rem">
+          <span class="spacer"></span>
+          <a class="btn" href="canvas.html">Next: Relevance Canvas →</a>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../js/sim-intake.js"></script>
+</body>
+</html>

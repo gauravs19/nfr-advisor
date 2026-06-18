@@ -25,7 +25,16 @@
     viewEl.innerHTML = "";
     [...tabsEl.children].forEach(a => a.classList.toggle("active", a.dataset.id === id));
     const v = VIEWS.find(x => x.id === id);
-    current = v.mount(viewEl) || null;
+    try {
+      current = v.mount(viewEl) || null;
+    } catch (err) {
+      current = null;
+      viewEl.innerHTML = `<div class="panel"><h2>Something went wrong</h2>
+        <p class="hint">This view failed to load: <span class="mono">${(err && err.message) || err}</span></p>
+        ${(typeof window.p5 === "undefined")
+          ? `<p class="hint">The p5.js library didn't load. If you're on a restricted network, make sure <span class="mono">js/lib/p5.min.js</span> is reachable.</p>` : ""}
+      </div>`;
+    }
   }
 
   // tabs

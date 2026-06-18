@@ -37,7 +37,7 @@ python -m http.server 8000
 
 ## Tech
 
-Vanilla JS + [p5.js](https://p5js.org/) (via CDN). No build step. MIT licensed.
+Vanilla JS + [p5.js](https://p5js.org/) (bundled locally in `js/lib/`, no CDN — works on restricted networks). No build step. MIT licensed.
 
 ## Roadmap
 

@@ -1,4 +1,4 @@
-/* NFR Advisor — single-page app. One context rail, views as tabs. */
+/* NFR Advisor — data-driven single-page app. Tables + trade-off matrix, no canvas. */
 (async function () {
   const catalog = await NFR.loadCatalog();
   const tabsEl = document.getElementById("tabs");
@@ -6,145 +6,122 @@
   const viewEl = document.getElementById("view");
 
   const VIEWS = [
-    { id: "relevance", label: "Relevance", mount: mountRelevance },
-    { id: "tradeoffs", label: "Trade-offs", mount: mountTradeoffs },
-    { id: "tree",      label: "Utility Tree", mount: mountTree },
-    { id: "scenarios", label: "Scenarios", mount: mountScenarios },
-    { id: "export",    label: "Export", mount: mountExport }
+    { id: "applicable", label: "Applicable NFRs", mount: mountApplicable },
+    { id: "tradeoffs",  label: "Trade-offs",      mount: mountTradeoffs },
+    { id: "scenarios",  label: "Scenarios",        mount: mountScenarios },
+    { id: "export",     label: "Export",           mount: mountExport }
   ];
 
-  let p5inst = null;          // current p5 sketch (if any)
-  let current = null;         // { onContext(ctx) }
-  let activeId = "relevance";
-
-  function clearP5() { if (p5inst) { p5inst.remove(); p5inst = null; } }
+  let current = null, activeId = "applicable";
 
   function switchTo(id) {
     activeId = id;
-    clearP5();
     viewEl.innerHTML = "";
     [...tabsEl.children].forEach(a => a.classList.toggle("active", a.dataset.id === id));
     const v = VIEWS.find(x => x.id === id);
-    try {
-      current = v.mount(viewEl) || null;
-    } catch (err) {
-      current = null;
-      viewEl.innerHTML = `<div class="panel"><h2>Something went wrong</h2>
-        <p class="hint">This view failed to load: <span class="mono">${(err && err.message) || err}</span></p>
-        ${(typeof window.p5 === "undefined")
-          ? `<p class="hint">The p5.js library didn't load. If you're on a restricted network, make sure <span class="mono">js/lib/p5.min.js</span> is reachable.</p>` : ""}
-      </div>`;
-    }
+    current = v.mount(viewEl) || null;
   }
 
-  // tabs
   tabsEl.innerHTML = VIEWS.map(v => `<a href="#${v.id}" data-id="${v.id}">${v.label}</a>`).join("");
-  tabsEl.querySelectorAll("a").forEach(a =>
-    a.addEventListener("click", e => { e.preventDefault(); switchTo(a.dataset.id); }));
+  tabsEl.querySelectorAll("a").forEach(a => a.addEventListener("click", e => { e.preventDefault(); switchTo(a.dataset.id); }));
 
-  // rail (persistent). On any context change, notify the active view.
   UI.renderContextRail(railEl, catalog, (ctx) => { if (current && current.onContext) current.onContext(ctx); });
-
   switchTo(activeId);
 
-  // ============================ VIEWS ============================
+  const esc = s => String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const whyTags = n => (n.fired && n.fired.length)
+    ? n.fired.map(f => `<span class="tag">${Object.entries(f.when).map(([k,v]) => esc(k+"="+v)).join(", ")} ${f.weight>=0?"+":""}${f.weight}</span>`).join("")
+    : `<span class="hint">base relevance only (+${n.baseScore||0})</span>`;
 
-  // ---- 1. Relevance Canvas ----
-  function mountRelevance(host) {
+  // ============================ 1. APPLICABLE NFRs (sortable/filterable table) ============================
+  function mountApplicable(host) {
     host.innerHTML = `
-      <div class="panel" style="margin-bottom:1rem">
-        <h2>Relevance Canvas</h2>
-        <p class="hint">NFR nodes animate, resizing & re-ranking by relevance for the context on the left. Red links = trade-off conflicts, green = reinforcing. Click a node for detail.</p>
-        <div class="canvas-host" id="host"></div>
-        <div class="legend" id="legend"></div>
-      </div>
-      <div class="panel" id="detailPanel"><h2>Detail</h2><p class="hint">Click a node to see why it applies, how to measure it, and which tactics realize it.</p></div>`;
-    const hostEl = host.querySelector("#host");
-    const detailPanel = host.querySelector("#detailPanel");
-    const legendEl = host.querySelector("#legend");
-    let nodes = [], edges = [], selectedId = null, W = 800, H = 520;
+      <div class="panel">
+        <h2>Applicable NFRs</h2>
+        <p class="hint">Ranked for the system context on the left. Importance comes from explicit rules — open a row's <b>Why</b> to see exactly which context facts drove the score. Sort by any column; filter to focus.</p>
+        <div class="toolbar">
+          <input type="text" id="q" class="grow" placeholder="Filter by name / alias…">
+          <select id="cat"><option value="">All categories</option>${catalog.categories.map(c=>`<option value="${c.id}">${esc(c.label)}</option>`).join("")}</select>
+          <select id="tier"><option value="">All tiers</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select>
+        </div>
+        <table class="data"><thead><tr>
+          <th data-sort="name">NFR</th>
+          <th data-sort="category">Category</th>
+          <th data-sort="score">Importance</th>
+          <th>ISO 25010</th>
+          <th>Why</th>
+        </tr></thead><tbody id="tbody"></tbody></table>
+      </div>`;
+    const tbody = host.querySelector("#tbody");
+    const q = host.querySelector("#q"), catSel = host.querySelector("#cat"), tierSel = host.querySelector("#tier");
+    let sortKey = "score", sortDir = -1, open = {};
 
-    function layout(ranked) {
-      const cols = 4, cellW = W / cols, rows = Math.ceil(ranked.length / cols), cellH = (H - 20) / rows;
-      ranked.forEach((n, i) => {
-        const c = i % cols, r = Math.floor(i / cols);
-        n.tx = cellW * c + cellW / 2; n.ty = cellH * r + cellH / 2 + 10; n.tr = 16 + n.relevance * 34;
+    function rows() {
+      let r = NFR.rankNfrs(catalog, NFR.getContext());
+      const text = q.value.trim().toLowerCase();
+      if (text) r = r.filter(n => (n.name+" "+(n.aliases||[]).join(" ")).toLowerCase().includes(text));
+      if (catSel.value) r = r.filter(n => n.category === catSel.value);
+      if (tierSel.value) r = r.filter(n => n.tier === tierSel.value);
+      r.sort((a,b) => {
+        let av = a[sortKey], bv = b[sortKey];
+        if (sortKey === "category") { av = NFR.categoryLabel(catalog,a.category); bv = NFR.categoryLabel(catalog,b.category); }
+        if (typeof av === "string") return sortDir * av.localeCompare(bv);
+        return sortDir * (av - bv);
       });
-      return ranked;
+      return r;
     }
-    function rebuild(ctx) {
-      const ranked = layout(NFR.rankNfrs(catalog, ctx));
-      const prev = {}; nodes.forEach(n => prev[n.id] = n);
-      nodes = ranked.map(r => {
-        const p = prev[r.id];
-        return Object.assign(r, { x: p ? p.x : r.tx + Math.sin(r.id.length) * 40, y: p ? p.y : r.ty, rad: p ? p.rad : 4 });
-      });
-      const conf = NFR.activeConflicts(ranked, "medium"), rein = NFR.reinforceEdges(ranked, "medium");
-      edges = conf.map(e => ({ a: e.a.id, b: e.b.id, type: "conflict" }))
-        .concat(rein.map(e => ({ a: e.a.id, b: e.b.id, type: "reinforce" })));
-      legendEl.innerHTML = catalog.categories.map(c => `<span><span class="dot" style="background:${c.color}"></span>${c.label}</span>`).join("")
-        + `<span><span class="dot" style="background:#ef4444"></span>conflict</span><span><span class="dot" style="background:#22c55e"></span>reinforce</span>`;
+    function render() {
+      const maxScore = Math.max(1, ...NFR.rankNfrs(catalog, NFR.getContext()).map(n=>n.score));
+      tbody.innerHTML = rows().map(n => {
+        const color = NFR.categoryColor(catalog, n.category);
+        const main = `<tr class="row-main" data-id="${n.id}">
+          <td><b>${esc(n.name)}</b><div class="kv">${(n.aliases||[]).slice(0,2).map(esc).join(", ")}</div></td>
+          <td><span class="catdot" style="background:${color}"></span>${esc(NFR.categoryLabel(catalog,n.category))}</td>
+          <td><span class="score-bar"><i style="width:${Math.round(n.score/maxScore*100)}%;background:${color}"></i></span><span class="badge ${n.tier}">${n.tier} · ${n.score}</span></td>
+          <td class="kv">${esc(n.iso)}</td>
+          <td><button class="btn secondary" data-why="${n.id}" style="padding:.2rem .5rem;font-size:.75rem">${open[n.id]?"Hide":"Why"}</button></td>
+        </tr>`;
+        const detail = open[n.id] ? `<tr class="row-detail"><td colspan="5">
+          <div class="why"><b>Why it applies:</b> ${whyTags(n)}</div>
+          <h3>Measure</h3><div class="mono">${esc(n.scenarioTemplate.stimulus)} → <b>${esc(n.scenarioTemplate.response)}</b> → <b>${esc(n.scenarioTemplate.measure)}</b></div>
+          <h3>Metrics</h3><div class="hint">${n.metrics.map(esc).join(" · ")}</div>
+          <h3>Tactics</h3><div class="hint">${n.tactics.map(esc).join(" · ")}</div>
+          <h3>Fitness function</h3><div class="mono">${esc(n.fitnessFunction)}</div>
+          ${(n.conflicts_with||[]).length?`<h3>Conflicts with</h3>${n.conflicts_with.map(c=>`<span class="tag">${esc(c)}</span>`).join("")}`:""}
+        </td></tr>` : "";
+        return main + detail;
+      }).join("");
+      tbody.querySelectorAll("button[data-why]").forEach(b => b.addEventListener("click", e => {
+        e.stopPropagation(); const id = b.dataset.why; open[id] = !open[id]; render();
+      }));
+      tbody.querySelectorAll("tr.row-main").forEach(tr => tr.addEventListener("click", () => { const id = tr.dataset.id; open[id] = !open[id]; render(); }));
     }
-    function showDetail(n) {
-      const fired = (n.fired && n.fired.length)
-        ? n.fired.map(f => `<span class="tag">${Object.entries(f.when).map(([k,v]) => k+"="+v).join(", ")} → +${f.weight}</span>`).join("")
-        : `<span class="hint">base relevance only</span>`;
-      detailPanel.innerHTML = `
-        <h2 style="border-left:5px solid ${NFR.categoryColor(catalog,n.category)};padding-left:.5rem">${n.name}</h2>
-        <div class="detail-card">
-          <span class="tag">${NFR.categoryLabel(catalog,n.category)}</span>
-          <span class="tag tier-${n.tier}">${n.tier.toUpperCase()} · score ${n.score}</span>
-          <span class="tag">ISO: ${n.iso}</span>
-          <h3>Why it applies</h3>${fired}
-          <h3>How to measure</h3><div class="mono">${n.scenarioTemplate.stimulus} → <b>${n.scenarioTemplate.response}</b> → <b>${n.scenarioTemplate.measure}</b></div>
-          <h3>Metrics</h3><ul>${n.metrics.map(m=>`<li>${m}</li>`).join("")}</ul>
-          <h3>Tactics</h3><ul>${n.tactics.map(t=>`<li>${t}</li>`).join("")}</ul>
-          <h3>Fitness function</h3><div class="mono">${n.fitnessFunction}</div>
-          ${(n.conflicts_with||[]).length?`<h3>Conflicts with</h3>${n.conflicts_with.map(c=>`<span class="tag">${c}</span>`).join("")}`:""}
-        </div>`;
-    }
-
-    p5inst = new p5(function (p) {
-      p.setup = function () { W = Math.min(hostEl.clientWidth || 800, 1000); H = 520; p.createCanvas(W, H).parent(hostEl); rebuild(NFR.getContext()); };
-      p.windowResized = function () { W = Math.min(hostEl.clientWidth || 800, 1000); p.resizeCanvas(W, H); rebuild(NFR.getContext()); };
-      p.draw = function () {
-        p.background(11,18,32);
-        const byId = {}; nodes.forEach(n => byId[n.id] = n);
-        nodes.forEach(n => { n.x += (n.tx-n.x)*0.12; n.y += (n.ty-n.y)*0.12; n.rad += (n.tr-n.rad)*0.12; });
-        edges.forEach(e => {
-          const a = byId[e.a], b = byId[e.b]; if (!a||!b) return;
-          if (e.type==="conflict"){ p.stroke(239,68,68,150); p.strokeWeight(1.6);} else { p.stroke(34,197,94,90); p.strokeWeight(1.2);}
-          p.line(a.x,a.y,b.x,b.y);
-        });
-        nodes.forEach(n => {
-          const col = p.color(NFR.categoryColor(catalog,n.category)); const sel = n.id===selectedId;
-          p.noStroke(); if (sel){ p.stroke(255); p.strokeWeight(2);} col.setAlpha(n.tier==="low"?110:235); p.fill(col);
-          p.circle(n.x,n.y,n.rad*2); p.noStroke(); p.fill(n.tier==="low"?150:235);
-          p.textAlign(p.CENTER,p.CENTER); p.textSize(n.rad>26?11:9);
-          p.text(n.name.length>18?n.name.slice(0,16)+"…":n.name, n.x, n.y+n.rad+9);
-        });
-      };
-      p.mousePressed = function () {
-        if (p.mouseX<0||p.mouseX>W||p.mouseY<0||p.mouseY>H) return;
-        let hit=null; nodes.forEach(n=>{ if (p.dist(p.mouseX,p.mouseY,n.x,n.y)<=n.rad) hit=n; });
-        if (hit){ selectedId=hit.id; showDetail(hit); }
-      };
-    });
-    return { onContext: rebuild };
+    host.querySelectorAll("th[data-sort]").forEach(th => th.addEventListener("click", () => {
+      const k = th.dataset.sort; if (sortKey === k) sortDir *= -1; else { sortKey = k; sortDir = (k === "score") ? -1 : 1; }
+      host.querySelectorAll("th[data-sort]").forEach(x => { const base = x.textContent.replace(/[ ▲▼]+$/,""); x.innerHTML = base + (x.dataset.sort===sortKey ? ` <span class="arrow">${sortDir<0?"▼":"▲"}</span>` : ""); });
+      render();
+    }));
+    [q, catSel, tierSel].forEach(el => el.addEventListener("input", render));
+    render();
+    return { onContext: render };
   }
 
-  // ---- 2. Trade-offs ----
+  // ============================ 2. TRADE-OFFS (matrix + resolution list) ============================
   function mountTradeoffs(host) {
     host.innerHTML = `
       <div class="panel" style="margin-bottom:1rem">
-        <h2>Trade-off graph</h2>
-        <p class="hint">Conflicts between currently-relevant NFRs. A red edge is unresolved; resolve it below by choosing which quality wins — that becomes an ADR on export.</p>
-        <div class="canvas-host" id="host"></div>
+        <h2>Trade-off matrix</h2>
+        <p class="hint">Relevant NFRs (medium+). A red cell is a conflict, green is reinforcing. Click a conflict cell to prioritize the <b>row</b> NFR over the <b>column</b> NFR — the cell turns green on the winning side. Each resolved conflict becomes an ADR on export.</p>
+        <div style="overflow:auto" id="matrixWrap"></div>
+        <div class="legend">
+          <span><span class="dot" style="background:#3a1212"></span>conflict (unresolved)</span>
+          <span><span class="dot" style="background:#14532d"></span>resolved (row wins)</span>
+          <span><span class="dot" style="background:#14361f"></span>reinforce</span>
+        </div>
       </div>
-      <div class="panel"><h2>Resolve trade-offs</h2><div id="edges"></div></div>`;
-    const hostEl = host.querySelector("#host");
-    const edgesEl = host.querySelector("#edges");
-    let ranked = [], conflicts = [], nodes = [], W = 800, H = 440;
+      <div class="panel"><h2>Conflicts &amp; decisions</h2><div id="list"></div></div>`;
+    const matrixWrap = host.querySelector("#matrixWrap");
+    const listEl = host.querySelector("#list");
 
     const TENSION = {
       "consistency::latency":"Strong consistency adds coordination latency (CAP/PACELC).",
@@ -162,106 +139,83 @@
       "cost-efficiency::recoverability":"DR replicas cost money.",
       "latency::portability":"Portability abstractions can cost latency."
     };
-    function tension(a,b){ return TENSION[[a,b].sort().join("::")] || "These qualities pull the design in opposite directions."; }
+    const tension = (a,b) => TENSION[[a,b].sort().join("::")] || "These qualities pull the design in opposite directions.";
+    const keyOf = (a,b) => [a,b].sort().join("::");
 
-    function rebuild(ctx) {
-      const all = NFR.rankNfrs(catalog, ctx);
-      ranked = all.filter(n => n.tier !== "low");
-      conflicts = NFR.activeConflicts(all, "medium");
-      const cx = W/2, cy = H/2, R = Math.min(W,H)/2 - 60;
-      nodes = ranked.map((n,i) => { const ang=(i/ranked.length)*Math.PI*2-Math.PI/2; return Object.assign(n,{x:cx+Math.cos(ang)*R,y:cy+Math.sin(ang)*R}); });
-      renderEdges();
+    function relationship(a, b) {
+      const conf = (a.conflicts_with||[]).includes(b.id) || (b.conflicts_with||[]).includes(a.id);
+      if (conf) return "conflict";
+      const rein = (a.reinforces||[]).includes(b.id) || (b.reinforces||[]).includes(a.id);
+      if (rein) return "reinforce";
+      return "";
     }
-    function renderEdges() {
+
+    function render() {
+      const ranked = NFR.rankNfrs(catalog, NFR.getContext()).filter(n => n.tier !== "low");
       const pr = NFR.getPriorities();
-      if (!conflicts.length) { edgesEl.innerHTML = `<p class="hint">No active conflicts for this context. Try raising availability target, data sensitivity, or latency sensitivity to surface tensions.</p>`; return; }
-      edgesEl.innerHTML = `<table class="tt"><thead><tr><th>Trade-off</th><th>Tension</th><th>Decision</th></tr></thead><tbody>` +
+      if (ranked.length < 2) { matrixWrap.innerHTML = `<p class="hint">Need at least two relevant NFRs to compare. Adjust the context.</p>`; listEl.innerHTML = ""; return; }
+
+      // matrix
+      let html = `<table class="matrix"><thead><tr><th class="rh"></th>` +
+        ranked.map((n,i)=>`<th class="ch" title="${esc(n.name)}">${i+1}</th>`).join("") + `</tr></thead><tbody>`;
+      ranked.forEach((rowN, ri) => {
+        html += `<tr><th class="rh" title="${esc(rowN.name)}">${ri+1} · ${esc(rowN.name)}</th>`;
+        ranked.forEach((colN, ci) => {
+          if (ri === ci) { html += `<td class="self">—</td>`; return; }
+          const rel = relationship(rowN, colN);
+          if (rel === "conflict") {
+            const w = pr[keyOf(rowN.id, colN.id)];
+            const cls = w ? (w === rowN.id ? "win" : "lose") : "";
+            const mark = w ? (w === rowN.id ? "✓" : "·") : "✕";
+            html += `<td class="conflict ${cls}" data-row="${rowN.id}" data-col="${colN.id}" title="${esc(rowN.name)} ↔ ${esc(colN.name)}">${mark}</td>`;
+          } else if (rel === "reinforce") {
+            html += `<td class="reinforce" title="reinforces">+</td>`;
+          } else { html += `<td></td>`; }
+        });
+        html += `</tr>`;
+      });
+      html += `</tbody></table>`;
+      matrixWrap.innerHTML = html;
+      matrixWrap.querySelectorAll("td.conflict").forEach(td => td.addEventListener("click", () => {
+        NFR.setPriority(keyOf(td.dataset.row, td.dataset.col), td.dataset.row); render();
+      }));
+
+      // list
+      const conflicts = NFR.activeConflicts(NFR.rankNfrs(catalog, NFR.getContext()), "medium");
+      if (!conflicts.length) { listEl.innerHTML = `<p class="hint">No active conflicts for this context. Try raising availability target, data sensitivity, or latency sensitivity.</p>`; return; }
+      listEl.innerHTML = `<table class="tt"><thead><tr><th>Trade-off</th><th>Tension</th><th>Decision</th></tr></thead><tbody>` +
         conflicts.map(e => {
           const w = pr[e.key];
-          const status = w ? `<span class="pill resolved">prioritized: ${w===e.a.id?e.a.name:e.b.name}</span>` : `<span class="pill conflict">unresolved</span>`;
-          return `<tr><td><b>${e.a.name}</b> ↔ <b>${e.b.name}</b><br>${status}</td>
-            <td class="hint">${tension(e.a.id,e.b.id)}</td>
-            <td><button class="btn ${w===e.a.id?'':'secondary'}" data-key="${e.key}" data-win="${e.a.id}">${e.a.name}</button>
-                <button class="btn ${w===e.b.id?'':'secondary'}" data-key="${e.key}" data-win="${e.b.id}">${e.b.name}</button></td></tr>`;
+          const status = w ? `<span class="pill resolved">prioritized: ${esc(w===e.a.id?e.a.name:e.b.name)}</span>` : `<span class="pill conflict">unresolved</span>`;
+          return `<tr><td><b>${esc(e.a.name)}</b> ↔ <b>${esc(e.b.name)}</b><br>${status}</td>
+            <td class="hint">${esc(tension(e.a.id,e.b.id))}</td>
+            <td><button class="btn ${w===e.a.id?'':'secondary'}" data-key="${e.key}" data-win="${e.a.id}">${esc(e.a.name)}</button>
+                <button class="btn ${w===e.b.id?'':'secondary'}" data-key="${e.key}" data-win="${e.b.id}">${esc(e.b.name)}</button></td></tr>`;
         }).join("") + `</tbody></table>`;
-      edgesEl.querySelectorAll("button[data-key]").forEach(b => b.addEventListener("click", () => { NFR.setPriority(b.dataset.key, b.dataset.win); renderEdges(); }));
+      listEl.querySelectorAll("button[data-key]").forEach(b => b.addEventListener("click", () => { NFR.setPriority(b.dataset.key, b.dataset.win); render(); }));
     }
-
-    p5inst = new p5(function (p) {
-      p.setup = function () { W = Math.min(hostEl.clientWidth||800,900); H=440; p.createCanvas(W,H).parent(hostEl); rebuild(NFR.getContext()); };
-      p.windowResized = function () { W = Math.min(hostEl.clientWidth||800,900); p.resizeCanvas(W,H); rebuild(NFR.getContext()); };
-      p.draw = function () {
-        p.background(11,18,32); const pr = NFR.getPriorities(); const byId={}; nodes.forEach(n=>byId[n.id]=n);
-        conflicts.forEach(e => { const a=byId[e.a.id],b=byId[e.b.id]; if(!a||!b)return;
-          if (pr[e.key]){ p.stroke(34,197,94,160); p.strokeWeight(1.6);} else { p.stroke(239,68,68,170); p.strokeWeight(2.2);} p.line(a.x,a.y,b.x,b.y); });
-        nodes.forEach(n => { const col=p.color(NFR.categoryColor(catalog,n.category)); col.setAlpha(235); p.fill(col); p.noStroke();
-          p.circle(n.x,n.y,26); p.fill(230); p.textAlign(p.CENTER,p.CENTER); p.textSize(9);
-          p.text(n.name.length>16?n.name.slice(0,14)+"…":n.name, n.x, n.y+22); });
-      };
-    });
-    return { onContext: rebuild };
+    render();
+    return { onContext: render };
   }
 
-  // ---- 3. Utility Tree ----
-  function mountTree(host) {
-    host.innerHTML = `
-      <div class="panel">
-        <h2>Utility tree</h2>
-        <p class="hint">ATAM-style decomposition: Utility → quality attributes → relevant NFRs as leaves, ranked by importance.</p>
-        <div class="canvas-host" id="host"></div>
-        <div class="legend"><span><span class="dot" style="background:#22c55e"></span>High importance</span><span><span class="dot" style="background:#eab308"></span>Medium importance</span></div>
-      </div>`;
-    const hostEl = host.querySelector("#host");
-    let tree = null, W = 820, H = 540;
-    function build(ctx) {
-      const ranked = NFR.rankNfrs(catalog, ctx).filter(n => n.tier !== "low");
-      const byCat = {}; ranked.forEach(n => (byCat[n.category]=byCat[n.category]||[]).push(n));
-      const cats = Object.keys(byCat).map(catId => ({ id:catId, label:NFR.categoryLabel(catalog,catId), color:NFR.categoryColor(catalog,catId), leaves:byCat[catId].sort((a,b)=>b.score-a.score) }));
-      tree = { cats, totalLeaves: ranked.length || 1 }; layout();
-    }
-    function layout() {
-      if (!tree) return;
-      const xCat = W*0.36, xLeaf = W*0.62; let i=0; const gap=(H-40)/tree.totalLeaves;
-      tree.cats.forEach(cat => { const start=i; cat.leaves.forEach(l => { l.x=xLeaf; l.y=20+gap*(i+0.5); i++; });
-        cat.x=xCat; cat.y = cat.leaves.length ? (cat.leaves[0].y+cat.leaves[cat.leaves.length-1].y)/2 : 20+gap*(start+0.5); });
-      tree.rootX=60; tree.rootY=H/2;
-    }
-    p5inst = new p5(function (p) {
-      p.setup = function () { W=Math.min(hostEl.clientWidth||820,980); H=540; p.createCanvas(W,H).parent(hostEl); build(NFR.getContext()); };
-      p.windowResized = function () { W=Math.min(hostEl.clientWidth||820,980); p.resizeCanvas(W,H); build(NFR.getContext()); };
-      p.draw = function () {
-        p.background(11,18,32); if (!tree) return;
-        p.stroke(80,100,130); p.strokeWeight(1.4); tree.cats.forEach(c=>p.line(tree.rootX+8,tree.rootY,c.x-4,c.y));
-        tree.cats.forEach(cat => cat.leaves.forEach(l => { const c=p.color(cat.color); c.setAlpha(150); p.stroke(c); p.strokeWeight(1.2); p.line(cat.x+4,cat.y,l.x-4,l.y); }));
-        p.noStroke(); p.fill(56,189,248); p.rectMode(p.CENTER); p.rect(tree.rootX,tree.rootY,70,30,6);
-        p.fill(4,38,58); p.textAlign(p.CENTER,p.CENTER); p.textSize(12); p.text("Utility",tree.rootX,tree.rootY);
-        tree.cats.forEach(cat => { p.fill(cat.color); p.rect(cat.x,cat.y,14,14,3); p.fill(220); p.textAlign(p.LEFT,p.CENTER); p.textSize(11); p.text(cat.label,cat.x+14,cat.y); });
-        tree.cats.forEach(cat => cat.leaves.forEach(l => { const t=l.tier==="high"?p.color(34,197,94):p.color(234,179,8); p.fill(t); p.noStroke(); p.circle(l.x,l.y,11);
-          p.fill(210); p.textAlign(p.LEFT,p.CENTER); p.textSize(10); const m=l.scenarioTemplate.measure; p.text(l.name+"  —  "+(m.length>34?m.slice(0,32)+"…":m), l.x+10, l.y); }));
-      };
-    });
-    return { onContext: build };
-  }
-
-  // ---- 4. Scenarios ----
+  // ============================ 3. SCENARIOS ============================
   function mountScenarios(host) {
     host.innerHTML = `<div class="panel"><h2>Scenario editor</h2>
       <p class="hint">Each relevant NFR becomes a measurable quality scenario — stimulus → response → measure. Edit the measures to your real targets; they're saved and flow into the export.</p>
       <div id="scenarios"></div></div>`;
     const wrap = host.querySelector("#scenarios");
-    const esc = s => (s||"").replace(/"/g,"&quot;");
-    function render(ctx) {
-      const ranked = NFR.rankNfrs(catalog, ctx).filter(n => n.tier !== "low");
+    function render() {
+      const ranked = NFR.rankNfrs(catalog, NFR.getContext()).filter(n => n.tier !== "low");
       const saved = NFR.getScenarios();
       if (!ranked.length) { wrap.innerHTML = `<p class="hint">No medium/high relevance NFRs for this context yet.</p>`; return; }
       wrap.innerHTML = ranked.map(n => {
         const s = saved[n.id] || n.scenarioTemplate; const color = NFR.categoryColor(catalog,n.category);
         return `<div class="nfr-card" style="border-left-color:${color};margin-bottom:.7rem">
-          <div class="row"><div class="name">${n.name}</div><span class="tag tier-${n.tier}">${n.tier.toUpperCase()}</span></div>
+          <div class="row"><div class="name">${esc(n.name)}</div><span class="badge ${n.tier}">${n.tier}</span></div>
           <div class="control"><label>Stimulus</label><input type="text" data-id="${n.id}" data-f="stimulus" value="${esc(s.stimulus)}"></div>
           <div class="control"><label>Response</label><input type="text" data-id="${n.id}" data-f="response" value="${esc(s.response)}"></div>
           <div class="control"><label>Measure (acceptance)</label><input type="text" data-id="${n.id}" data-f="measure" value="${esc(s.measure)}"></div>
-          <div class="kv">Fitness function: <span class="mono">${n.fitnessFunction}</span></div></div>`;
+          <div class="kv">Fitness function: <span class="mono">${esc(n.fitnessFunction)}</span></div></div>`;
       }).join("");
       wrap.querySelectorAll("input[data-id]").forEach(inp => inp.addEventListener("change", () => {
         const id=inp.dataset.id, f=inp.dataset.f;
@@ -269,11 +223,11 @@
         cur[f] = inp.value; NFR.setScenario(id, cur);
       }));
     }
-    render(NFR.getContext());
+    render();
     return { onContext: render };
   }
 
-  // ---- 5. Export ----
+  // ============================ 4. EXPORT ============================
   function mountExport(host) {
     host.innerHTML = `
       <div class="panel" style="margin-bottom:1rem">
@@ -291,7 +245,6 @@
     const out = host.querySelector("#out");
     let tab = "yaml";
     const yEsc = s => /[:#{}\[\],&*?|<>=!%@`"']/.test(s) ? JSON.stringify(s) : s;
-
     function gather() {
       const ctx = NFR.getContext();
       const all = NFR.rankNfrs(catalog, ctx);
@@ -342,13 +295,11 @@
     const content = () => tab==="yaml"?toYaml():tab==="md"?toMd():toAdr();
     const filename = () => tab==="yaml"?"nfrs.yaml":tab==="md"?"nfrs.md":"adr-tradeoffs.md";
     const render = () => out.textContent = content();
-
     host.querySelectorAll("button[data-tab]").forEach(b => b.addEventListener("click", () => {
       host.querySelectorAll("button[data-tab]").forEach(x => x.classList.remove("active")); b.classList.add("active"); tab = b.dataset.tab; render();
     }));
     host.querySelector("#copyBtn").addEventListener("click", () => { navigator.clipboard.writeText(content()); const btn=host.querySelector("#copyBtn"); const t=btn.textContent; btn.textContent="Copied!"; setTimeout(()=>btn.textContent=t,1200); });
     host.querySelector("#dlBtn").addEventListener("click", () => { const blob=new Blob([content()],{type:"text/plain"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=filename(); a.click(); URL.revokeObjectURL(a.href); });
-
     render();
     return { onContext: render };
   }

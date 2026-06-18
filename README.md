@@ -2,21 +2,22 @@
 
 An interactive, structured advisor for **non-functional requirements (NFRs)**. It takes a system's **context** → ranks the **applicable quality attributes** → surfaces **trade-offs** → turns them into **measurable scenarios** → and exports an **as-code NFR spec + ADRs**.
 
-Grounded in **ISO/IEC 25010**, the **arc42 Quality Model (Q42)**, and **ATAM**. A single-page p5.js app — static, no backend, deployable to GitHub Pages.
+Grounded in **ISO/IEC 25010**, the **arc42 Quality Model (Q42)**, and **ATAM**. A single-page, data-driven app — static, no backend, no build step, deployable to GitHub Pages.
 
 > Most open resources are *catalogs* (arc42 Q42), *standards* (ISO 25010), or *manual methods* (ATAM). None walk an architect from **context → selection → trade-off → measurable criteria → as-code**. That intersection is what this tool fills.
 
 ## How to use it
 
-One page, one persistent **System context** rail on the left, and five views as tabs. Set the context once — every tab reacts to it live.
+One page, one persistent **System context** rail on the left, and four views as tabs. Set the context once — every tab reacts to it live.
 
 | Tab | What it does |
 |-----|--------------|
-| **Relevance** | Animated selector — NFR nodes re-rank and resize live as you change context. Click any node for ISO mapping, the rules that fired, metrics, tactics, and a fitness function. |
-| **Trade-offs** | Conflicts between the relevant NFRs (latency ↔ consistency, availability ↔ cost…). Resolve each by choosing a winner → becomes an ADR. |
-| **Utility Tree** | ATAM-style decomposition: Utility → quality attributes → NFR leaves, ranked by importance. |
+| **Applicable NFRs** | A sortable, filterable table of NFRs ranked by importance for the context. Every row's **Why** shows exactly which context facts drove the score (no black box) — plus ISO mapping, metrics, tactics, and a fitness function. |
+| **Trade-offs** | An N×N **trade-off matrix** of the relevant NFRs (latency ↔ consistency, availability ↔ cost…). Click a conflict cell to prioritize one quality over another; each resolved conflict becomes an ADR. |
 | **Scenarios** | Each NFR → a measurable `stimulus → response → measure` scenario (arc42 Q42 / ATAM). |
 | **Export** | Generates `nfrs.yaml` (machine-readable), `nfrs.md` (human spec), and trade-off **ADRs**. |
+
+> An earlier p5.js canvas version is archived at tag `v0.1-canvas` / branch `archive/canvas-microsim`.
 
 ## How it works
 
@@ -37,7 +38,7 @@ python -m http.server 8000
 
 ## Tech
 
-Vanilla JS + [p5.js](https://p5js.org/) (bundled locally in `js/lib/`, no CDN — works on restricted networks). No build step. MIT licensed.
+Vanilla JS + semantic HTML tables + CSS. No frameworks, no build step, no external dependencies — works offline and on restricted networks. MIT licensed.
 
 ## Roadmap
 

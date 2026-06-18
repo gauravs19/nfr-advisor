@@ -14,6 +14,11 @@
 
   let current = null, activeId = "applicable";
 
+  const esc = s => String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const whyTags = n => (n.fired && n.fired.length)
+    ? n.fired.map(f => `<span class="tag">${Object.entries(f.when).map(([k,v]) => esc(k+"="+v)).join(", ")} ${f.weight>=0?"+":""}${f.weight}</span>`).join("")
+    : `<span class="hint">base relevance only (+${n.baseScore||0})</span>`;
+
   function switchTo(id) {
     activeId = id;
     viewEl.innerHTML = "";
@@ -27,11 +32,6 @@
 
   UI.renderContextRail(railEl, catalog, (ctx) => { if (current && current.onContext) current.onContext(ctx); });
   switchTo(activeId);
-
-  const esc = s => String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
-  const whyTags = n => (n.fired && n.fired.length)
-    ? n.fired.map(f => `<span class="tag">${Object.entries(f.when).map(([k,v]) => esc(k+"="+v)).join(", ")} ${f.weight>=0?"+":""}${f.weight}</span>`).join("")
-    : `<span class="hint">base relevance only (+${n.baseScore||0})</span>`;
 
   // ============================ 1. APPLICABLE NFRs (sortable/filterable table) ============================
   function mountApplicable(host) {

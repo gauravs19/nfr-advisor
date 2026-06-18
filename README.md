@@ -2,20 +2,21 @@
 
 An interactive, structured advisor for **non-functional requirements (NFRs)**. It takes a system's **context** → ranks the **applicable quality attributes** → surfaces **trade-offs** → turns them into **measurable scenarios** → and exports an **as-code NFR spec + ADRs**.
 
-Grounded in **ISO/IEC 25010**, the **arc42 Quality Model (Q42)**, and **ATAM**. Built as a set of p5.js "MicroSims" — a static site, no backend, deployable to GitHub Pages.
+Grounded in **ISO/IEC 25010**, the **arc42 Quality Model (Q42)**, and **ATAM**. A single-page p5.js app — static, no backend, deployable to GitHub Pages.
 
 > Most open resources are *catalogs* (arc42 Q42), *standards* (ISO 25010), or *manual methods* (ATAM). None walk an architect from **context → selection → trade-off → measurable criteria → as-code**. That intersection is what this tool fills.
 
-## The six screens
+## How to use it
 
-| # | Screen | What it does |
-|---|--------|--------------|
-| 1 | **Context Intake** | Capture the system profile: domain, scale, latency & data sensitivity, availability target, team maturity, budget, deployment. |
-| 2 | **Relevance Canvas** | Animated selector — NFR nodes re-rank and resize live as you change context. Click any node for ISO mapping, the rules that fired, metrics, tactics, and a fitness function. |
-| 3 | **Trade-off Graph** | Conflicts between the relevant NFRs (latency ↔ consistency, availability ↔ cost…). Resolve each by choosing a winner → becomes an ADR. |
-| 4 | **Utility Tree** | ATAM-style decomposition: Utility → quality attributes → NFR leaves, ranked by importance. |
-| 5 | **Scenario Editor** | Each NFR → a measurable `stimulus → response → measure` scenario (arc42 Q42 / ATAM). |
-| 6 | **Export** | Generates `nfrs.yaml` (machine-readable), `nfrs.md` (human spec), and trade-off **ADRs**. |
+One page, one persistent **System context** rail on the left, and five views as tabs. Set the context once — every tab reacts to it live.
+
+| Tab | What it does |
+|-----|--------------|
+| **Relevance** | Animated selector — NFR nodes re-rank and resize live as you change context. Click any node for ISO mapping, the rules that fired, metrics, tactics, and a fitness function. |
+| **Trade-offs** | Conflicts between the relevant NFRs (latency ↔ consistency, availability ↔ cost…). Resolve each by choosing a winner → becomes an ADR. |
+| **Utility Tree** | ATAM-style decomposition: Utility → quality attributes → NFR leaves, ranked by importance. |
+| **Scenarios** | Each NFR → a measurable `stimulus → response → measure` scenario (arc42 Q42 / ATAM). |
+| **Export** | Generates `nfrs.yaml` (machine-readable), `nfrs.md` (human spec), and trade-off **ADRs**. |
 
 ## How it works
 

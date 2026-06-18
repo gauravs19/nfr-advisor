@@ -5,38 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NFR Advisor</title>
   <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/p5@1.9.4/lib/p5.min.js"></script>
 </head>
 <body>
+  <header class="topbar">
+    <div class="brand">NFR&nbsp;<span>Advisor</span></div>
+    <nav id="tabs"></nav>
+  </header>
+  <div class="wrap">
+    <div class="layout">
+      <aside class="panel" id="rail"></aside>
+      <main id="view"></main>
+    </div>
+  </div>
   <script src="js/engine.js"></script>
   <script src="js/ui.js"></script>
-  <div class="wrap">
-    <div class="panel" style="margin-bottom:1rem">
-      <h2 style="font-size:1.4rem">NFR Advisor</h2>
-      <p class="hint">
-        A structured, interactive advisor that takes a system's <strong>context</strong> →
-        ranks the <strong>applicable non-functional requirements</strong> →
-        surfaces <strong>trade-offs</strong> → turns them into <strong>measurable scenarios</strong> →
-        and exports an <strong>as-code NFR spec + ADRs</strong>.
-        Grounded in ISO/IEC&nbsp;25010, the arc42 Quality Model, and ATAM.
-      </p>
-    </div>
-    <div class="cards" id="home"></div>
-  </div>
-  <script>
-    UI.renderTopbar(null);
-    const STEPS = [
-      ["intake.html", "1 · Context Intake", "Describe the system: domain, scale, data sensitivity, availability target, team & budget."],
-      ["canvas.html", "2 · Relevance Canvas", "Watch NFRs re-rank live as you adjust context. The animated selector — click any node for detail."],
-      ["conflict.html", "3 · Trade-off Graph", "See which top NFRs conflict (e.g. latency ↔ consistency) and record a priority decision per edge."],
-      ["utility-tree.html", "4 · Utility Tree", "ATAM-style decomposition of the chosen qualities into prioritized branches."],
-      ["scenario.html", "5 · Scenario Editor", "Turn each NFR into a measurable stimulus → response → measure scenario."],
-      ["export.html", "6 · Export", "Generate nfrs.yaml, nfrs.md, and trade-off ADRs — versionable, diffable, CI-ready."]
-    ];
-    document.getElementById("home").innerHTML = STEPS.map(s =>
-      `<a class="nfr-card" style="display:block" href="${s[0]}">
-         <div class="name">${s[1]}</div>
-         <div class="hint">${s[2]}</div>
-       </a>`).join("");
-  </script>
+  <script src="js/app.js"></script>
 </body>
 </html>

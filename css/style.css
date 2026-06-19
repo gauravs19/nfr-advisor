@@ -289,6 +289,12 @@ details.guide summary { cursor: pointer; font-size: 0.95rem; }
 .guide-t { font-weight: 600; font-size: 0.85rem; }
 @media (max-width: 560px) { .guide-row { grid-template-columns: 1fr; } }
 
+/* quick-start + next-step */
+.control.quickstart { background: var(--panel-2); border: 1px solid var(--accent); border-radius: 9px; padding: 0.6rem; margin-bottom: 0.8rem; }
+.control.quickstart label { color: var(--accent); font-weight: 600; }
+.panel.nextstep { border-left: 4px solid var(--good); }
+.panel.nextstep .btn { white-space: nowrap; }
+
 /* footer */
 footer.app-footer { max-width: 1200px; margin: 1.5rem auto 0; padding: 1rem 1.25rem 2rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.8rem; display: flex; flex-wrap: wrap; gap: 0.5rem 1.2rem; align-items: center; }
 footer.app-footer a { color: var(--accent); }

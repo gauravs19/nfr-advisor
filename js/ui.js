@@ -23,12 +23,16 @@
     return `<div class="control"><label>${dim.label}</label><div class="seg">${buttons}</div></div>`;
   }
 
-  function renderContextRail(host, catalog, onChange) {
+  function renderContextRail(host, catalog, onChange, profiles) {
     const ctx = NFR.getContext();
     const byId = {}; catalog.contextDimensions.forEach(d => byId[d.id] = d);
     const used = new Set();
 
     let html = `<div class="rail-head"><h2>System context</h2><button class="btn secondary" id="resetCtx">Reset</button></div>`;
+    if (profiles && profiles.length) {
+      html += `<div class="control quickstart"><label>⚡ Quick start — load an example</label>
+        <select id="profileSel"><option value="">Choose a system profile…</option>${profiles.map((p, i) => `<option value="${i}">${p.name}</option>`).join("")}</select></div>`;
+    }
     GROUPS.forEach((g, gi) => {
       const dims = g.dims.map(id => byId[id]).filter(Boolean);
       if (!dims.length) return;
@@ -61,7 +65,15 @@
     const reset = host.querySelector("#resetCtx");
     if (reset) reset.addEventListener("click", () => {
       NFR.setContext(Object.assign({}, NFR.DEFAULT_CONTEXT));
-      renderContextRail(host, catalog, onChange);
+      renderContextRail(host, catalog, onChange, profiles);
+      onChange(NFR.getContext());
+    });
+    const profSel = host.querySelector("#profileSel");
+    if (profSel) profSel.addEventListener("change", () => {
+      const p = profiles[parseInt(profSel.value, 10)];
+      if (!p) return;
+      NFR.setContext(Object.assign({}, NFR.DEFAULT_CONTEXT, p.context));
+      renderContextRail(host, catalog, onChange, profiles);
       onChange(NFR.getContext());
     });
   }

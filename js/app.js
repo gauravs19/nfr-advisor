@@ -58,7 +58,14 @@
   tabsEl.innerHTML = VIEWS.map((v, i) => `<a href="#${v.id}" data-id="${v.id}" title="${TAB_HELP[v.id] || ""}"><span class="step">${i + 1}</span>${v.label}</a>`).join("");
   tabsEl.querySelectorAll("a").forEach(a => a.addEventListener("click", e => { e.preventDefault(); switchTo(a.dataset.id); }));
 
-  UI.renderContextRail(railEl, catalog, () => { if (current && current.onContext) current.onContext(); });
+  const PROFILES = [
+    { name: "EU fintech (cards)", context: { domain: "fintech-trading", region: "eu", dataSensitivity: "pci", availabilityTarget: "99.99", systemCriticality: "mission-critical", deployment: "multi-region", userType: "b2c-public", dataResidency: "strict", architectureStyle: "microservices", lifecycleStage: "mature" } },
+    { name: "US healthcare SaaS", context: { domain: "healthcare", region: "us", dataSensitivity: "phi", availabilityTarget: "99.99", systemCriticality: "tier-1", userType: "b2b-partner", dataResidency: "regional", architectureStyle: "modular-monolith", lifecycleStage: "growth" } },
+    { name: "Global e-commerce", context: { domain: "ecommerce", region: "global", dataSensitivity: "pci", userScale: "over-1M", latencySensitivity: "high", availabilityTarget: "99.99", systemCriticality: "tier-1", userType: "b2c-public", lifecycleStage: "mature" } },
+    { name: "Gen-AI startup", context: { domain: "saas-b2b", region: "eu", dataSensitivity: "pii", aiUsage: "genai", userScale: "1k-100k", lifecycleStage: "mvp", systemCriticality: "tier-2", budget: "lean", architectureStyle: "serverless" } },
+    { name: "Internal tool", context: { domain: "internal-tool", region: "global", dataSensitivity: "internal", userType: "internal", availabilityTarget: "99.9", systemCriticality: "tier-3", budget: "lean", aiUsage: "none" } }
+  ];
+  UI.renderContextRail(railEl, catalog, () => { if (current && current.onContext) current.onContext(); }, PROFILES);
 
   const themeBtn = document.getElementById("themeToggle");
   function applyThemeIcon() { themeBtn.textContent = (document.documentElement.getAttribute("data-theme") === "light") ? "🌙 Dark" : "☀ Light"; }
@@ -82,10 +89,11 @@
           <div id="scoreComps"></div>
         </div>
       </div>
-      <details class="panel guide" style="margin-bottom:1rem">
+      <details class="panel guide" id="guideDetails" style="margin-bottom:1rem">
         <summary><b>How this works</b> — the 7 tabs, in order</summary>
         <div id="guide"></div>
       </details>
+      <div class="panel nextstep" id="nextStep" style="margin-bottom:1rem"></div>
       <div class="panel" style="margin-bottom:1rem">
         <h2>Overview</h2>
         <p class="hint">Cross-dimension summary for the current system context.</p>
@@ -114,12 +122,24 @@
       ["7 · Export", "Generate nfrs.yaml, a governance spec, and trade-off ADRs."]
     ].map(([t,d])=>`<div class="guide-row"><div class="guide-t">${t}</div><div class="hint">${d}</div></div>`).join("");
 
+    const nextStepEl = host.querySelector("#nextStep");
+    const guideDetails = host.querySelector("#guideDetails");
+    // open the guide on first visit only
+    try { if (!localStorage.getItem("nfr-seen-guide")) { guideDetails.open = true; localStorage.setItem("nfr-seen-guide", "1"); } } catch (e) {}
+
     function render() {
       const r = NFR.readiness(catalog, NFR.getContext());
-      const gColor = r.score>=70?"var(--good)":r.score>=40?"var(--warn)":"var(--bad)";
-      gaugeEl.style.background = `conic-gradient(${gColor} ${r.score*3.6}deg, var(--code-bg) 0)`;
-      gaugeEl.innerHTML = `<div class="score-inner"><div class="score-num">${r.score}</div><div class="score-grade">grade ${r.grade}</div></div>`;
-      scoreHint.innerHTML = `<b>Score = Maturity×50% + Compliance×30% + Trade-offs×20%</b> (each 0–100). It rises as you assess <b>Maturity</b> and resolve <b>Trade-offs</b>.`;
+      const assessed = Object.keys(NFR.getMaturity()).length;
+      if (!assessed) {
+        gaugeEl.style.background = `conic-gradient(var(--line) 0deg, var(--code-bg) 0)`;
+        gaugeEl.innerHTML = `<div class="score-inner"><div class="score-num" style="font-size:1.5rem;color:var(--muted)">—</div><div class="score-grade">not assessed</div></div>`;
+        scoreHint.innerHTML = `Your readiness score appears once you <b>assess maturity</b> (tab 6 · Maturity &amp; Gaps). The compliance and trade-off components below are already computed from your context.`;
+      } else {
+        const gColor = r.score>=70?"var(--good)":r.score>=40?"var(--warn)":"var(--bad)";
+        gaugeEl.style.background = `conic-gradient(${gColor} ${r.score*3.6}deg, var(--code-bg) 0)`;
+        gaugeEl.innerHTML = `<div class="score-inner"><div class="score-num">${r.score}</div><div class="score-grade">grade ${r.grade}</div></div>`;
+        scoreHint.innerHTML = `<b>Score = Maturity×50% + Compliance×30% + Trade-offs×20%</b> (each 0–100). It rises as you assess <b>Maturity</b> and resolve <b>Trade-offs</b>.`;
+      }
       const cc = r.counts;
       const comps = [
         ["Maturity", "50%", r.components.maturity, `avg current÷target across ${cc.relevant} relevant NFRs (unassessed counts as 0)`],
@@ -166,6 +186,16 @@
       risksEl.innerHTML = unresolved.length
         ? `<table class="tt"><tbody>${unresolved.map(e=>`<tr><td>${esc(e.a.name)} ↔ ${esc(e.b.name)}</td><td style="text-align:right"><span class="pill conflict">unresolved</span></td></tr>`).join("")}</tbody></table><p class="hint" style="margin-top:.5rem">Resolve on the <b>Trade-offs</b> tab.</p>`
         : (conflicts.length?`<p class="hint">All ${conflicts.length} trade-offs resolved. ✓</p>`:`<p class="hint">No trade-off tensions for this context.</p>`);
+
+      // recommended next step
+      let step;
+      if (relevant.length === 0) step = { go: null, txt: "Set your system context on the left to begin." };
+      else if (!assessed) step = { go: "maturity", txt: `Assess maturity for your ${relevant.length} relevant NFRs to compute your readiness score.` };
+      else if (unresolved.length) step = { go: "tradeoffs", txt: `Resolve ${unresolved.length} open trade-off${unresolved.length===1?"":"s"} — each becomes an ADR.` };
+      else step = { go: "export", txt: "You're in good shape — export your NFR spec, ADRs, and governance report." };
+      nextStepEl.innerHTML = `<h2 style="margin:0 0 .3rem">✅ Recommended next step</h2><div class="row"><span class="hint" style="flex:1">${step.txt}</span>${step.go?`<button class="btn" id="nsBtn">Go →</button>`:""}</div>`;
+      const nsBtn = nextStepEl.querySelector("#nsBtn");
+      if (nsBtn) nsBtn.addEventListener("click", () => switchTo(step.go));
     }
     render(); return { onContext: render };
   }

@@ -272,7 +272,14 @@ header.topbar nav a.active .step { background: var(--accent); color: var(--on-ac
 .score-body { flex: 1; }
 .comp-row { display: flex; align-items: center; gap: 0.6rem; margin: 0.25rem 0; }
 .comp-l { flex: 0 0 90px; font-size: 0.8rem; color: var(--muted); }
-.comp-v { flex: 0 0 32px; text-align: right; font-size: 0.8rem; }
+.comp-v { flex: 0 0 32px; text-align: right; font-size: 0.8rem; font-weight: 700; }
+.comp-w { color: var(--muted); font-weight: 400; font-size: 0.7rem; }
+.comp-ex { font-size: 0.72rem; color: var(--muted); margin: -0.1rem 0 0.4rem 0; padding-left: 0.1rem; }
+
+/* workflow back / next nav */
+.view-nav { display: flex; align-items: center; gap: 0.6rem; margin-top: 1rem; padding-top: 0.8rem; border-top: 1px solid var(--line); }
+.view-nav .step-of { flex: 1; text-align: center; font-size: 0.78rem; color: var(--muted); }
+.view-nav .btn { min-width: 120px; }
 @media (max-width: 560px) { .score-panel { flex-direction: column; text-align: center; } }
 
 /* guide */

@@ -11,7 +11,12 @@
     { title: "AI / ML", dims: ["aiUsage"] }
   ];
 
+  // high-cardinality dimensions render as a dropdown; small ones as segmented buttons
   function dimControl(dim, ctx) {
+    if (dim.options.length > 6) {
+      const opts = dim.options.map(o => `<option value="${o}" ${ctx[dim.id] === o ? "selected" : ""}>${o}</option>`).join("");
+      return `<div class="control"><label>${dim.label}</label><select data-dim="${dim.id}">${opts}</select></div>`;
+    }
     const buttons = dim.options.map(opt =>
       `<button data-dim="${dim.id}" data-val="${opt}" class="${ctx[dim.id] === opt ? "active" : ""}">${opt}</button>`
     ).join("");
@@ -46,6 +51,9 @@
         btn.classList.add("active");
         onChange(NFR.patchContext(dim, val));
       });
+    });
+    host.querySelectorAll("select[data-dim]").forEach(sel => {
+      sel.addEventListener("change", () => onChange(NFR.patchContext(sel.getAttribute("data-dim"), sel.value)));
     });
     host.querySelectorAll(".rail-group-head").forEach(h => h.addEventListener("click", () => {
       h.parentElement.classList.toggle("collapsed");

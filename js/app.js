@@ -33,7 +33,18 @@
     activeId = id;
     viewEl.innerHTML = "";
     [...tabsEl.children].forEach(a => a.classList.toggle("active", a.dataset.id === id));
-    current = VIEWS.find(x => x.id === id).mount(viewEl) || null;
+    const idx = VIEWS.findIndex(x => x.id === id);
+    current = VIEWS[idx].mount(viewEl) || null;
+    // workflow Back / Next nav
+    const prev = VIEWS[idx - 1], next = VIEWS[idx + 1];
+    const nav = document.createElement("div");
+    nav.className = "view-nav";
+    nav.innerHTML =
+      (prev ? `<button class="btn secondary" data-go="${prev.id}">← ${esc(prev.label)}</button>` : `<span></span>`) +
+      `<span class="step-of">Step ${idx + 1} of ${VIEWS.length}</span>` +
+      (next ? `<button class="btn" data-go="${next.id}">${esc(next.label)} →</button>` : `<span></span>`);
+    viewEl.appendChild(nav);
+    nav.querySelectorAll("button[data-go]").forEach(b => b.addEventListener("click", () => { switchTo(b.dataset.go); window.scrollTo({ top: 0, behavior: "smooth" }); }));
   }
   const TAB_HELP = {
     overview: "Start here — your overall readiness score, what's in scope, and where the risks are.",
@@ -108,9 +119,18 @@
       const gColor = r.score>=70?"var(--good)":r.score>=40?"var(--warn)":"var(--bad)";
       gaugeEl.style.background = `conic-gradient(${gColor} ${r.score*3.6}deg, var(--code-bg) 0)`;
       gaugeEl.innerHTML = `<div class="score-inner"><div class="score-num">${r.score}</div><div class="score-grade">grade ${r.grade}</div></div>`;
-      scoreHint.innerHTML = `Composite of maturity (50%), compliance (30%), and trade-off resolution (20%). It rises as you assess <b>Maturity</b> and resolve <b>Trade-offs</b>.`;
-      scoreComps.innerHTML = [["Maturity",r.components.maturity],["Compliance",r.components.compliance],["Trade-offs",r.components.tradeoffs]]
-        .map(([l,v])=>`<div class="comp-row"><span class="comp-l">${l}</span><span class="meter"><i style="width:${v}%;background:${v>=70?'var(--good)':v>=40?'var(--warn)':'var(--bad)'}"></i></span><span class="comp-v">${v}</span></div>`).join("");
+      scoreHint.innerHTML = `<b>Score = Maturity×50% + Compliance×30% + Trade-offs×20%</b> (each 0–100). It rises as you assess <b>Maturity</b> and resolve <b>Trade-offs</b>.`;
+      const cc = r.counts;
+      const comps = [
+        ["Maturity", "50%", r.components.maturity, `avg current÷target across ${cc.relevant} relevant NFRs (unassessed counts as 0)`],
+        ["Compliance", "30%", r.components.compliance, cc.mandatory ? `avg maturity attainment across ${cc.mandatory} mandatory NFRs` : "no mandatory NFRs in scope → 100"],
+        ["Trade-offs", "20%", r.components.tradeoffs, cc.conflicts ? `${cc.resolved} of ${cc.conflicts} conflicts resolved` : "no conflicts in scope → 100"]
+      ];
+      scoreComps.innerHTML = comps.map(([l,w,v,ex])=>`
+        <div class="comp-row"><span class="comp-l">${l} <span class="comp-w">×${w}</span></span>
+          <span class="meter"><i style="width:${v}%;background:${v>=70?'var(--good)':v>=40?'var(--warn)':'var(--bad)'}"></i></span>
+          <span class="comp-v">${v}</span></div>
+        <div class="comp-ex">${ex}</div>`).join("");
       const all = ranked();
       const relevant = all.filter(n=>n.tier!=="low"), high=all.filter(n=>n.tier==="high"), med=all.filter(n=>n.tier==="medium");
       const mandatory = all.filter(n=>n.mandatory);

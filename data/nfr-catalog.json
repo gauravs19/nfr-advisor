@@ -17,8 +17,8 @@
     { "id": "ai",             "label": "AI / ML Quality",        "color": "#ec4899" }
   ],
   "contextDimensions": [
-    { "id": "domain", "label": "Domain", "type": "enum",
-      "options": ["internal-tool", "web-app", "ecommerce", "fintech-trading", "healthcare", "iot", "data-platform", "gaming"] },
+    { "id": "domain", "label": "Business Domain", "type": "enum",
+      "options": ["internal-tool", "web-app", "saas-b2b", "ecommerce", "retail-pos", "fintech-trading", "banking", "insurance", "healthcare", "edtech", "govtech", "telecom", "media-streaming", "gaming", "social", "iot", "manufacturing", "energy-utilities", "automotive", "logistics", "data-platform", "adtech", "crypto-web3", "travel"] },
     { "id": "region", "label": "Region / Jurisdiction", "type": "enum",
       "options": ["global", "eu", "us", "uk", "india", "canada", "brazil", "apac"] },
     { "id": "publicSector", "label": "Public Sector / Gov", "type": "enum",
@@ -36,13 +36,13 @@
     { "id": "budget", "label": "Budget", "type": "ordinal",
       "options": ["lean", "moderate", "generous"] },
     { "id": "deployment", "label": "Deployment", "type": "enum",
-      "options": ["single-region", "multi-region", "edge", "on-prem"] },
+      "options": ["single-region", "multi-region", "multi-cloud", "hybrid", "edge", "on-prem"] },
     { "id": "systemCriticality", "label": "System Criticality", "type": "ordinal",
       "options": ["tier-3", "tier-2", "tier-1", "mission-critical"] },
     { "id": "architectureStyle", "label": "Architecture Style", "type": "enum",
       "options": ["monolith", "modular-monolith", "microservices", "event-driven", "serverless"] },
     { "id": "userType", "label": "Primary Users", "type": "enum",
-      "options": ["internal", "b2b-partner", "b2c-public"] },
+      "options": ["internal", "b2b-partner", "b2c-public", "mixed"] },
     { "id": "dataResidency", "label": "Data Residency", "type": "ordinal",
       "options": ["none", "regional", "strict"] },
     { "id": "lifecycleStage", "label": "Lifecycle Stage", "type": "enum",
@@ -163,7 +163,7 @@
       "tactics": ["Caching (CDN, in-memory) — Cache-Aside pattern", "Read replicas (CQRS read model)", "Async/non-blocking I/O", "Precompute / materialized views"],
       "fitnessFunction": "Load test asserts p95 < target under N concurrent users (k6/Gatling in CI)",
       "baseScore": 1, "conflicts_with": ["consistency", "auditability", "confidentiality"], "reinforces": ["scalability"],
-      "rules": [ {"when":{"latencySensitivity":"high"},"weight":4}, {"when":{"latencySensitivity":"medium"},"weight":2}, {"when":{"domain":"fintech-trading"},"weight":4}, {"when":{"domain":"gaming"},"weight":3}, {"when":{"domain":"ecommerce"},"weight":2} ]
+      "rules": [ {"when":{"latencySensitivity":"high"},"weight":4}, {"when":{"latencySensitivity":"medium"},"weight":2}, {"when":{"domain":"fintech-trading"},"weight":4}, {"when":{"domain":"gaming"},"weight":3}, {"when":{"domain":"ecommerce"},"weight":2}, {"when":{"domain":"media-streaming"},"weight":3}, {"when":{"domain":"adtech"},"weight":3}, {"when":{"domain":"crypto-web3"},"weight":2}, {"when":{"domain":"banking"},"weight":1} ]
     },
     {
       "id": "throughput", "name": "Throughput", "category": "performance",
@@ -175,7 +175,7 @@
       "tactics": ["Horizontal scaling (stateless workers)", "Load balancing", "Batching & windowing", "Backpressure / rate limiting"],
       "fitnessFunction": "Soak test sustains target TPS for 1h without degradation",
       "baseScore": 1, "conflicts_with": [], "reinforces": ["scalability"],
-      "rules": [ {"when":{"userScale":"over-1M"},"weight":4}, {"when":{"userScale":"100k-1M"},"weight":3}, {"when":{"domain":"data-platform"},"weight":3}, {"when":{"domain":"iot"},"weight":3} ]
+      "rules": [ {"when":{"userScale":"over-1M"},"weight":4}, {"when":{"userScale":"100k-1M"},"weight":3}, {"when":{"domain":"data-platform"},"weight":3}, {"when":{"domain":"iot"},"weight":3}, {"when":{"domain":"telecom"},"weight":3}, {"when":{"domain":"media-streaming"},"weight":3}, {"when":{"domain":"adtech"},"weight":3}, {"when":{"domain":"logistics"},"weight":2} ]
     },
     {
       "id": "scalability", "name": "Scalability", "category": "performance",
@@ -187,7 +187,7 @@
       "tactics": ["Stateless services", "Auto-scaling groups / HPA", "Sharding / partitioning", "Event-driven decoupling"],
       "fitnessFunction": "Scale test: 2x load triggers auto-scale within bound, SLO holds",
       "baseScore": 1, "conflicts_with": ["consistency"], "reinforces": ["availability", "throughput"],
-      "rules": [ {"when":{"userScale":"over-1M"},"weight":4}, {"when":{"userScale":"100k-1M"},"weight":3}, {"when":{"domain":"ecommerce"},"weight":2}, {"when":{"domain":"gaming"},"weight":2} ]
+      "rules": [ {"when":{"userScale":"over-1M"},"weight":4}, {"when":{"userScale":"100k-1M"},"weight":3}, {"when":{"domain":"ecommerce"},"weight":2}, {"when":{"domain":"gaming"},"weight":2}, {"when":{"domain":"social"},"weight":3}, {"when":{"domain":"media-streaming"},"weight":2}, {"when":{"domain":"saas-b2b"},"weight":1} ]
     },
     {
       "id": "availability", "name": "Availability", "category": "reliability",
@@ -199,7 +199,7 @@
       "tactics": ["Redundancy (active-active)", "Health checks + automated failover", "Multi-AZ / multi-region", "Graceful degradation"],
       "fitnessFunction": "Game-day: kill an instance/AZ, verify SLO and error budget hold",
       "baseScore": 1, "conflicts_with": ["cost-efficiency", "consistency"], "reinforces": ["fault-tolerance"],
-      "rules": [ {"when":{"availabilityTarget":"99.999"},"weight":5}, {"when":{"availabilityTarget":"99.99"},"weight":4}, {"when":{"availabilityTarget":"99.9"},"weight":2}, {"when":{"domain":"ecommerce"},"weight":2}, {"when":{"domain":"healthcare"},"weight":3}, {"when":{"domain":"fintech-trading"},"weight":3}, {"when":{"systemCriticality":"mission-critical"},"weight":3}, {"when":{"systemCriticality":"tier-1"},"weight":2} ]
+      "rules": [ {"when":{"availabilityTarget":"99.999"},"weight":5}, {"when":{"availabilityTarget":"99.99"},"weight":4}, {"when":{"availabilityTarget":"99.9"},"weight":2}, {"when":{"domain":"ecommerce"},"weight":2}, {"when":{"domain":"healthcare"},"weight":3}, {"when":{"domain":"fintech-trading"},"weight":3}, {"when":{"systemCriticality":"mission-critical"},"weight":3}, {"when":{"systemCriticality":"tier-1"},"weight":2}, {"when":{"domain":"banking"},"weight":3}, {"when":{"domain":"telecom"},"weight":3}, {"when":{"domain":"energy-utilities"},"weight":3}, {"when":{"domain":"govtech"},"weight":2}, {"when":{"domain":"insurance"},"weight":2} ]
     },
     {
       "id": "fault-tolerance", "name": "Fault Tolerance / Resilience", "category": "reliability",
@@ -271,7 +271,7 @@
       "tactics": ["Append-only / immutable audit log", "Correlation IDs", "Tamper-evident storage (WORM)", "Retention & legal hold policies"],
       "fitnessFunction": "Verify sensitive actions produce immutable, attributable audit entries",
       "baseScore": 0, "conflicts_with": ["latency"], "reinforces": ["integrity"],
-      "rules": [ {"when":{"dataSensitivity":"pci"},"weight":3}, {"when":{"dataSensitivity":"phi"},"weight":4}, {"when":{"domain":"fintech-trading"},"weight":3}, {"when":{"domain":"healthcare"},"weight":3} ]
+      "rules": [ {"when":{"dataSensitivity":"pci"},"weight":3}, {"when":{"dataSensitivity":"phi"},"weight":4}, {"when":{"domain":"fintech-trading"},"weight":3}, {"when":{"domain":"healthcare"},"weight":3}, {"when":{"domain":"banking"},"weight":3}, {"when":{"domain":"insurance"},"weight":2}, {"when":{"domain":"govtech"},"weight":2}, {"when":{"publicSector":"yes"},"weight":1} ]
     },
     {
       "id": "modularity", "name": "Modularity", "category": "maintainability",
@@ -319,7 +319,7 @@
       "tactics": ["Semantic HTML / ARIA", "Full keyboard navigation", "Contrast & text scaling", "Automated a11y linting (axe)"],
       "fitnessFunction": "axe-core CI scan passes on key pages",
       "baseScore": 0, "conflicts_with": [], "reinforces": ["learnability"],
-      "rules": [ {"when":{"domain":"web-app"},"weight":2}, {"when":{"domain":"ecommerce"},"weight":2}, {"when":{"domain":"healthcare"},"weight":2}, {"when":{"region":"eu"},"weight":1}, {"when":{"domain":"internal-tool"},"weight":-1} ]
+      "rules": [ {"when":{"domain":"web-app"},"weight":2}, {"when":{"domain":"ecommerce"},"weight":2}, {"when":{"domain":"healthcare"},"weight":2}, {"when":{"region":"eu"},"weight":1}, {"when":{"domain":"internal-tool"},"weight":-1}, {"when":{"domain":"govtech"},"weight":3}, {"when":{"domain":"edtech"},"weight":2}, {"when":{"publicSector":"yes"},"weight":2} ]
     },
     {
       "id": "learnability", "name": "Learnability / Ease of Use", "category": "usability",
@@ -343,7 +343,7 @@
       "tactics": ["Open standards (OpenAPI, gRPC, FHIR, ISO 20022)", "Versioned contracts", "Schema registry", "Anti-corruption layer"],
       "fitnessFunction": "Contract tests against published schema pass",
       "baseScore": 0, "conflicts_with": [], "reinforces": ["modifiability"],
-      "rules": [ {"when":{"domain":"healthcare"},"weight":3}, {"when":{"domain":"data-platform"},"weight":2}, {"when":{"domain":"iot"},"weight":2}, {"when":{"domain":"fintech-trading"},"weight":2} ]
+      "rules": [ {"when":{"domain":"healthcare"},"weight":3}, {"when":{"domain":"data-platform"},"weight":2}, {"when":{"domain":"iot"},"weight":2}, {"when":{"domain":"fintech-trading"},"weight":2}, {"when":{"domain":"logistics"},"weight":3}, {"when":{"domain":"banking"},"weight":2}, {"when":{"domain":"insurance"},"weight":2}, {"when":{"domain":"telecom"},"weight":2}, {"when":{"domain":"govtech"},"weight":2} ]
     },
     {
       "id": "portability", "name": "Portability / Deployability", "category": "portability",
@@ -391,7 +391,7 @@
       "tactics": ["Transactions / SAGA", "Idempotency", "Per-aggregate strong-vs-eventual choice", "Conflict resolution (CRDTs)"],
       "fitnessFunction": "Concurrency test: no lost updates beyond declared model",
       "baseScore": 0, "conflicts_with": ["latency", "scalability", "availability"], "reinforces": ["integrity"],
-      "rules": [ {"when":{"domain":"fintech-trading"},"weight":4}, {"when":{"domain":"ecommerce"},"weight":2}, {"when":{"dataSensitivity":"pci"},"weight":2}, {"when":{"domain":"data-platform"},"weight":2} ]
+      "rules": [ {"when":{"domain":"fintech-trading"},"weight":4}, {"when":{"domain":"ecommerce"},"weight":2}, {"when":{"dataSensitivity":"pci"},"weight":2}, {"when":{"domain":"data-platform"},"weight":2}, {"when":{"domain":"banking"},"weight":4}, {"when":{"domain":"insurance"},"weight":2}, {"when":{"domain":"crypto-web3"},"weight":3}, {"when":{"domain":"retail-pos"},"weight":1} ]
     },
     {
       "id": "privacy", "name": "Privacy / Data Protection", "category": "security",
@@ -403,7 +403,7 @@
       "tactics": ["Privacy by design / default", "Data minimization & retention policies", "Consent management", "Data residency / regional pinning", "Pseudonymization"],
       "fitnessFunction": "Verify retention enforced, DSAR workflow works, residency honoured",
       "baseScore": 0, "conflicts_with": ["latency"], "reinforces": ["confidentiality", "auditability"],
-      "rules": [ {"when":{"dataSensitivity":"pii"},"weight":3}, {"when":{"dataSensitivity":"phi"},"weight":4}, {"when":{"region":"eu"},"weight":2}, {"when":{"region":"uk"},"weight":1}, {"when":{"dataResidency":"strict"},"weight":3}, {"when":{"dataResidency":"regional"},"weight":1} ]
+      "rules": [ {"when":{"dataSensitivity":"pii"},"weight":3}, {"when":{"dataSensitivity":"phi"},"weight":4}, {"when":{"region":"eu"},"weight":2}, {"when":{"region":"uk"},"weight":1}, {"when":{"dataResidency":"strict"},"weight":3}, {"when":{"dataResidency":"regional"},"weight":1}, {"when":{"domain":"adtech"},"weight":3}, {"when":{"domain":"edtech"},"weight":2}, {"when":{"domain":"social"},"weight":2} ]
     },
     {
       "id": "sustainability", "name": "Sustainability / Green IT", "category": "operability",
@@ -439,7 +439,7 @@
       "tactics": ["Fail-safe / fail-operational design", "Redundancy & voting", "Watchdogs & interlocks", "Hazard analysis (FMEA/HAZOP)"],
       "fitnessFunction": "Hazard scenarios tested; safe-state transition verified within time budget",
       "baseScore": 0, "conflicts_with": ["latency", "cost-efficiency"], "reinforces": ["fault-tolerance", "integrity"],
-      "rules": [ {"when":{"domain":"iot"},"weight":3}, {"when":{"domain":"healthcare"},"weight":3}, {"when":{"systemCriticality":"mission-critical"},"weight":4}, {"when":{"systemCriticality":"tier-1"},"weight":2} ]
+      "rules": [ {"when":{"domain":"iot"},"weight":3}, {"when":{"domain":"healthcare"},"weight":3}, {"when":{"systemCriticality":"mission-critical"},"weight":4}, {"when":{"systemCriticality":"tier-1"},"weight":2}, {"when":{"domain":"manufacturing"},"weight":3}, {"when":{"domain":"energy-utilities"},"weight":3}, {"when":{"domain":"automotive"},"weight":4} ]
     },
     {
       "id": "data-quality", "name": "Data Quality", "category": "operability",
@@ -463,7 +463,7 @@
       "tactics": ["Externalized strings / resource bundles", "Locale-aware formatting (ICU)", "RTL support", "Translation pipeline"],
       "fitnessFunction": "Pseudo-localization test passes; no hard-coded strings",
       "baseScore": 0, "conflicts_with": [], "reinforces": ["learnability"],
-      "rules": [ {"when":{"userType":"b2c-public"},"weight":2}, {"when":{"domain":"ecommerce"},"weight":2}, {"when":{"region":"apac"},"weight":1}, {"when":{"region":"eu"},"weight":1} ]
+      "rules": [ {"when":{"userType":"b2c-public"},"weight":2}, {"when":{"domain":"ecommerce"},"weight":2}, {"when":{"region":"apac"},"weight":1}, {"when":{"region":"eu"},"weight":1}, {"when":{"domain":"travel"},"weight":2}, {"when":{"domain":"social"},"weight":1}, {"when":{"domain":"media-streaming"},"weight":1} ]
     },
     {
       "id": "configurability", "name": "Configurability", "category": "maintainability",
@@ -571,7 +571,7 @@
       "tactics": ["Digital signatures", "Trusted timestamping", "Append-only signed ledger", "Strong identity binding"],
       "fitnessFunction": "Verify signed records are produced and independently verifiable",
       "baseScore": 0, "conflicts_with": ["latency"], "reinforces": ["integrity", "auditability"],
-      "rules": [ {"when":{"domain":"fintech-trading"},"weight":3}, {"when":{"dataSensitivity":"phi"},"weight":1}, {"when":{"region":"eu"},"weight":1} ]
+      "rules": [ {"when":{"domain":"fintech-trading"},"weight":3}, {"when":{"dataSensitivity":"phi"},"weight":1}, {"when":{"region":"eu"},"weight":1}, {"when":{"domain":"banking"},"weight":3}, {"when":{"domain":"insurance"},"weight":2}, {"when":{"domain":"govtech"},"weight":2}, {"when":{"domain":"crypto-web3"},"weight":2} ]
     },
     {
       "id": "durability", "name": "Data Durability", "category": "reliability",

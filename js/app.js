@@ -1,6 +1,8 @@
 /* NFR Advisor — data-driven single-page app. Enterprise edition. */
 (async function () {
   const catalog = await NFR.loadCatalog();
+  const fv = document.getElementById("footVersion");
+  if (fv) fv.textContent = `v${catalog.version} · ${catalog.nfrs.length} NFRs · ${catalog.regulations.length} standards · ${catalog.contextDimensions.length} context dims`;
   const tabsEl = document.getElementById("tabs");
   const railEl = document.getElementById("rail");
   const viewEl = document.getElementById("view");
@@ -33,7 +35,16 @@
     [...tabsEl.children].forEach(a => a.classList.toggle("active", a.dataset.id === id));
     current = VIEWS.find(x => x.id === id).mount(viewEl) || null;
   }
-  tabsEl.innerHTML = VIEWS.map(v => `<a href="#${v.id}" data-id="${v.id}">${v.label}</a>`).join("");
+  const TAB_HELP = {
+    overview: "Start here — your overall readiness score, what's in scope, and where the risks are.",
+    applicable: "The ranked NFR backlog: which quality attributes apply to this system and why.",
+    compliance: "Which laws & standards apply to this context, and the NFRs they make mandatory.",
+    tradeoffs: "Where chosen NFRs conflict — decide which wins; each decision becomes an ADR.",
+    scenarios: "Make each NFR testable: the SEI 6-part scenario with a quantified SLO.",
+    maturity: "Score where you are vs target, and get a prioritized remediation roadmap.",
+    export: "Take it with you: nfrs.yaml, a governance spec, and trade-off ADRs."
+  };
+  tabsEl.innerHTML = VIEWS.map((v, i) => `<a href="#${v.id}" data-id="${v.id}" title="${TAB_HELP[v.id] || ""}"><span class="step">${i + 1}</span>${v.label}</a>`).join("");
   tabsEl.querySelectorAll("a").forEach(a => a.addEventListener("click", e => { e.preventDefault(); switchTo(a.dataset.id); }));
 
   UI.renderContextRail(railEl, catalog, () => { if (current && current.onContext) current.onContext(); });
@@ -52,6 +63,18 @@
   // ============================ OVERVIEW ============================
   function mountOverview(host) {
     host.innerHTML = `
+      <div class="panel score-panel" style="margin-bottom:1rem">
+        <div class="score-gauge" id="gauge"></div>
+        <div class="score-body">
+          <h2 style="margin:0">NFR Readiness Score</h2>
+          <p class="hint" id="scoreHint"></p>
+          <div id="scoreComps"></div>
+        </div>
+      </div>
+      <details class="panel guide" style="margin-bottom:1rem">
+        <summary><b>How this works</b> — the 7 tabs, in order</summary>
+        <div id="guide"></div>
+      </details>
       <div class="panel" style="margin-bottom:1rem">
         <h2>Overview</h2>
         <p class="hint">Cross-dimension summary for the current system context.</p>
@@ -68,7 +91,26 @@
         <div class="panel"><h2>Open risks (unresolved trade-offs)</h2><div id="risks"></div></div>
       </div>`;
     const statsEl=host.querySelector("#stats"), regimesEl=host.querySelector("#regimes"), dimsEl=host.querySelector("#dims"), topEl=host.querySelector("#top"), risksEl=host.querySelector("#risks");
+    const gaugeEl=host.querySelector("#gauge"), scoreHint=host.querySelector("#scoreHint"), scoreComps=host.querySelector("#scoreComps");
+    host.querySelector("#guide").innerHTML = [
+      ["Set context (left)", "Describe the system once — domain, region, data, scale, criticality, AI. Everything reacts to it."],
+      ["1 · Overview", "This page: your readiness score, regulations in scope, coverage by dimension, and top risks."],
+      ["2 · Applicable NFRs", "The ranked backlog of quality attributes that apply, with the rules that justify each."],
+      ["3 · Compliance", "The laws/standards triggered by your context and the NFRs they make mandatory."],
+      ["4 · Trade-offs", "Resolve conflicts between NFRs (e.g. latency vs consistency); decisions become ADRs."],
+      ["5 · Scenarios", "Turn each NFR into a testable SEI 6-part scenario with a quantified SLO."],
+      ["6 · Maturity & Gaps", "Rate current vs target maturity → gap heatmap → prioritized roadmap."],
+      ["7 · Export", "Generate nfrs.yaml, a governance spec, and trade-off ADRs."]
+    ].map(([t,d])=>`<div class="guide-row"><div class="guide-t">${t}</div><div class="hint">${d}</div></div>`).join("");
+
     function render() {
+      const r = NFR.readiness(catalog, NFR.getContext());
+      const gColor = r.score>=70?"var(--good)":r.score>=40?"var(--warn)":"var(--bad)";
+      gaugeEl.style.background = `conic-gradient(${gColor} ${r.score*3.6}deg, var(--code-bg) 0)`;
+      gaugeEl.innerHTML = `<div class="score-inner"><div class="score-num">${r.score}</div><div class="score-grade">grade ${r.grade}</div></div>`;
+      scoreHint.innerHTML = `Composite of maturity (50%), compliance (30%), and trade-off resolution (20%). It rises as you assess <b>Maturity</b> and resolve <b>Trade-offs</b>.`;
+      scoreComps.innerHTML = [["Maturity",r.components.maturity],["Compliance",r.components.compliance],["Trade-offs",r.components.tradeoffs]]
+        .map(([l,v])=>`<div class="comp-row"><span class="comp-l">${l}</span><span class="meter"><i style="width:${v}%;background:${v>=70?'var(--good)':v>=40?'var(--warn)':'var(--bad)'}"></i></span><span class="comp-v">${v}</span></div>`).join("");
       const all = ranked();
       const relevant = all.filter(n=>n.tier!=="low"), high=all.filter(n=>n.tier==="high"), med=all.filter(n=>n.tier==="medium");
       const mandatory = all.filter(n=>n.mandatory);

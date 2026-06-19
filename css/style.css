@@ -258,5 +258,33 @@ table.data tr.row-detail td { background: var(--code-bg); }
 /* maturity gap bar */
 .gap-bar { display: inline-block; width: 64px; height: 8px; border-radius: 4px; background: var(--code-bg); overflow: hidden; vertical-align: middle; margin-right: 0.35rem; }
 .gap-bar > i { display: block; height: 100%; }
+
+/* tab step numbers */
+header.topbar nav a .step { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; margin-right: 0.35rem; border-radius: 50%; background: var(--panel); color: var(--muted); font-size: 0.62rem; font-weight: 700; }
+header.topbar nav a.active .step { background: var(--accent); color: var(--on-accent); }
+
+/* readiness score panel */
+.score-panel { display: flex; align-items: center; gap: 1.2rem; }
+.score-gauge { flex: 0 0 auto; width: 110px; height: 110px; border-radius: 50%; display: grid; place-items: center; }
+.score-inner { width: 84px; height: 84px; border-radius: 50%; background: var(--panel); display: grid; place-items: center; text-align: center; }
+.score-num { font-size: 1.9rem; font-weight: 800; line-height: 1; }
+.score-grade { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+.score-body { flex: 1; }
+.comp-row { display: flex; align-items: center; gap: 0.6rem; margin: 0.25rem 0; }
+.comp-l { flex: 0 0 90px; font-size: 0.8rem; color: var(--muted); }
+.comp-v { flex: 0 0 32px; text-align: right; font-size: 0.8rem; }
+@media (max-width: 560px) { .score-panel { flex-direction: column; text-align: center; } }
+
+/* guide */
+details.guide summary { cursor: pointer; font-size: 0.95rem; }
+.guide-row { display: grid; grid-template-columns: 160px 1fr; gap: 0.6rem; padding: 0.35rem 0; border-top: 1px solid var(--line); }
+.guide-row:first-child { border-top: none; }
+.guide-t { font-weight: 600; font-size: 0.85rem; }
+@media (max-width: 560px) { .guide-row { grid-template-columns: 1fr; } }
+
+/* footer */
+footer.app-footer { max-width: 1200px; margin: 1.5rem auto 0; padding: 1rem 1.25rem 2rem; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.8rem; display: flex; flex-wrap: wrap; gap: 0.5rem 1.2rem; align-items: center; }
+footer.app-footer a { color: var(--accent); }
+footer.app-footer .spacer { flex: 1; }
 select[data-mat] { padding: 0.25rem 0.4rem; background: var(--panel-2); border: 1px solid var(--line); color: var(--ink); border-radius: 6px; }
 table.data input[type=text] { padding: 0.3rem 0.45rem; background: var(--panel-2); border: 1px solid var(--line); color: var(--ink); border-radius: 6px; }

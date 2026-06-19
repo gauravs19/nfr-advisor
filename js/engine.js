@@ -185,6 +185,36 @@
     return Math.max(0, targetMaturity(nfr.tier) - cur);
   }
 
+  // ---- overall NFR readiness score (0-100) ----
+  // Blends maturity attainment, compliance attainment (over mandatory NFRs), and trade-off resolution.
+  function readiness(catalog, context) {
+    const all = rankAnnotated(catalog, context);
+    const relevant = all.filter(n => n.tier !== "low");
+    const mat = getMaturity();
+    const attain = n => { const t = targetMaturity(n.tier); return t ? Math.min(1, ((typeof mat[n.id] === "number") ? mat[n.id] : 0) / t) : 1; };
+
+    const maturity = relevant.length ? relevant.reduce((s, n) => s + attain(n), 0) / relevant.length : 1;
+    const mandatory = all.filter(n => n.mandatory);
+    const compliance = mandatory.length ? mandatory.reduce((s, n) => s + attain(n), 0) / mandatory.length : 1;
+    const conflicts = activeConflicts(all, "medium");
+    const pr = getPriorities();
+    const resolved = conflicts.filter(e => pr[e.key]).length;
+    const tradeoffs = conflicts.length ? resolved / conflicts.length : 1;
+
+    const W = { maturity: 0.5, compliance: 0.3, tradeoffs: 0.2 };
+    const score = Math.round((maturity * W.maturity + compliance * W.compliance + tradeoffs * W.tradeoffs) * 100);
+    const grade = score >= 85 ? "A" : score >= 70 ? "B" : score >= 55 ? "C" : score >= 40 ? "D" : "E";
+    return {
+      score, grade, weights: W,
+      components: {
+        maturity: Math.round(maturity * 100),
+        compliance: Math.round(compliance * 100),
+        tradeoffs: Math.round(tradeoffs * 100)
+      },
+      counts: { relevant: relevant.length, mandatory: mandatory.length, conflicts: conflicts.length, resolved }
+    };
+  }
+
   global.NFR = {
     DEFAULT_CONTEXT,
     loadState, saveState,
@@ -195,6 +225,6 @@
     loadCatalog, categoryColor, categoryLabel,
     scoreNfr, rankNfrs, rankAnnotated, activeConflicts, reinforceEdges,
     applicableRegulations, mandatoryNfrIds, regulationsForNfr,
-    targetMaturity, maturityGap
+    targetMaturity, maturityGap, readiness
   };
 })(window);

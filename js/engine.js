@@ -7,13 +7,20 @@
   // ---- shared context state (persisted across screens via localStorage) ----
   const DEFAULT_CONTEXT = {
     domain: "web-app",
+    region: "global",
     userScale: "1k-100k",
     latencySensitivity: "medium",
     dataSensitivity: "internal",
     availabilityTarget: "99.9",
     teamMaturity: "mixed",
     budget: "moderate",
-    deployment: "single-region"
+    deployment: "single-region",
+    systemCriticality: "tier-2",
+    architectureStyle: "microservices",
+    userType: "b2c-public",
+    dataResidency: "none",
+    lifecycleStage: "growth",
+    aiUsage: "none"
   };
 
   function loadState() {
@@ -38,6 +45,11 @@
 
   function getScenarios() { return loadState().scenarios || {}; }
   function setScenario(nfrId, scenario) { const s = loadState(); s.scenarios = s.scenarios || {}; s.scenarios[nfrId] = scenario; saveState(s); }
+
+  function getMaturity() { return loadState().maturity || {}; }
+  function setMaturity(nfrId, level) { const s = loadState(); s.maturity = s.maturity || {}; s.maturity[nfrId] = level; saveState(s); }
+  function getOwners() { return loadState().owners || {}; }
+  function setOwner(nfrId, owner) { const s = loadState(); s.owners = s.owners || {}; s.owners[nfrId] = owner; saveState(s); }
 
   // ---- catalog loading ----
   let _catalog = null;
@@ -132,13 +144,56 @@
     return edges;
   }
 
+  // ---- compliance ----
+  // a regulation applies if ANY of its appliesWhen condition-objects fully matches the context
+  function applicableRegulations(catalog, context) {
+    return (catalog.regulations || []).filter(reg =>
+      (reg.appliesWhen || []).some(cond => Object.keys(cond).every(k => context[k] === cond[k]))
+    );
+  }
+  // set of NFR ids made mandatory by the applicable regulations
+  function mandatoryNfrIds(catalog, context) {
+    const ids = new Set();
+    applicableRegulations(catalog, context).forEach(reg => (reg.drives || []).forEach(id => ids.add(id)));
+    return ids;
+  }
+  // which applicable regulations reference a given NFR
+  function regulationsForNfr(catalog, context, nfrId) {
+    return applicableRegulations(catalog, context).filter(reg => (reg.drives || []).includes(nfrId));
+  }
+
+  // ranking annotated with compliance: flags mandatory NFRs, attaches driving regs,
+  // and elevates mandatory NFRs to "high" importance (compliance is non-negotiable).
+  function rankAnnotated(catalog, context) {
+    const mand = mandatoryNfrIds(catalog, context);
+    const ranked = rankNfrs(catalog, context);
+    ranked.forEach(n => {
+      n.regs = regulationsForNfr(catalog, context, n.id).map(r => r.id);
+      n.mandatory = mand.has(n.id);
+      if (n.mandatory && n.tier !== "high") { n.tier = "high"; n.elevated = true; }
+    });
+    ranked.sort((a, b) => (Number(b.mandatory) - Number(a.mandatory)) || (b.score - a.score));
+    return ranked;
+  }
+
+  // ---- maturity ----
+  // target maturity (0-5) derived from importance tier
+  function targetMaturity(tier) { return tier === "high" ? 4 : (tier === "medium" ? 3 : 2); }
+  function maturityGap(nfr, currentLevel) {
+    const cur = (typeof currentLevel === "number") ? currentLevel : 0;
+    return Math.max(0, targetMaturity(nfr.tier) - cur);
+  }
+
   global.NFR = {
     DEFAULT_CONTEXT,
     loadState, saveState,
     getContext, setContext, patchContext,
     getPriorities, setPriority,
     getScenarios, setScenario,
+    getMaturity, setMaturity, getOwners, setOwner,
     loadCatalog, categoryColor, categoryLabel,
-    scoreNfr, rankNfrs, activeConflicts, reinforceEdges
+    scoreNfr, rankNfrs, rankAnnotated, activeConflicts, reinforceEdges,
+    applicableRegulations, mandatoryNfrIds, regulationsForNfr,
+    targetMaturity, maturityGap
   };
 })(window);

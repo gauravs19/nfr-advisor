@@ -220,3 +220,25 @@ table.data tr.row-detail td { background: var(--code-bg); }
 .subsection .sub-detail h4 { margin: 0.6rem 0 0.2rem; font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
 .iso-crumb { font-size: 0.75rem; color: var(--muted); }
 .iso-crumb b { color: var(--ink); font-weight: 600; }
+
+/* severity chips */
+.sev { font-size: 0.62rem; padding: 0.06rem 0.4rem; border-radius: 4px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
+.sev.critical { background: var(--bad); color: #fff; }
+.sev.high { background: #f97316; color: #fff; }
+.sev.medium { background: var(--warn); color: #3a2d00; }
+.sev.low { background: var(--low-bg); color: var(--low-ink); }
+
+/* mandatory + regulation chips */
+.mand { font-size: 0.62rem; padding: 0.06rem 0.4rem; border-radius: 4px; font-weight: 700; letter-spacing: 0.3px; background: var(--conflict-bg); color: var(--conflict-ink); border: 1px solid var(--bad); }
+.reg-chip { display: inline-block; font-size: 0.7rem; padding: 0.1rem 0.5rem; margin: 0.1rem 0.15rem 0.1rem 0; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--accent); color: var(--accent); }
+
+/* 6-part scenario grid */
+.qa-grid { display: grid; grid-template-columns: max-content 1fr; gap: 0.2rem 0.7rem; font-size: 0.83rem; margin: 0.3rem 0 0.2rem; }
+.qa-grid dt { color: var(--muted); font-weight: 600; }
+.qa-grid dd { margin: 0; }
+
+/* maturity gap bar */
+.gap-bar { display: inline-block; width: 64px; height: 8px; border-radius: 4px; background: var(--code-bg); overflow: hidden; vertical-align: middle; margin-right: 0.35rem; }
+.gap-bar > i { display: block; height: 100%; }
+select[data-mat] { padding: 0.25rem 0.4rem; background: var(--panel-2); border: 1px solid var(--line); color: var(--ink); border-radius: 6px; }
+table.data input[type=text] { padding: 0.3rem 0.45rem; background: var(--panel-2); border: 1px solid var(--line); color: var(--ink); border-radius: 6px; }

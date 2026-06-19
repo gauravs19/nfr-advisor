@@ -90,7 +90,25 @@ header.topbar nav a.active, header.topbar nav a:hover {
 .panel h2 { margin: 0 0 0.75rem; font-size: 1rem; }
 .panel h3 { margin: 1rem 0 0.4rem; font-size: 0.85rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
 
-.control { margin-bottom: 0.9rem; }
+/* context rail */
+#rail { position: sticky; top: 64px; max-height: calc(100vh - 80px); overflow-y: auto; padding-top: 0.5rem; }
+@media (max-width: 860px) { #rail { position: static; max-height: none; } }
+.rail-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
+.rail-head h2 { margin: 0; }
+.rail-head .btn { padding: 0.25rem 0.6rem; font-size: 0.75rem; }
+.rail-group { border: 1px solid var(--line); border-radius: 9px; margin-bottom: 0.55rem; overflow: hidden; background: var(--bg); }
+.rail-group-head {
+  display: flex; align-items: center; gap: 0.45rem; padding: 0.45rem 0.6rem; cursor: pointer;
+  font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted);
+  background: var(--panel-2); user-select: none;
+}
+.rail-group-head:hover { color: var(--ink); }
+.rail-group-head .chev { font-size: 0.7rem; transition: transform 0.15s; }
+.rail-group.collapsed .rail-group-head .chev { transform: rotate(-90deg); }
+.rail-group-body { padding: 0.6rem 0.6rem 0.2rem; }
+.rail-group.collapsed .rail-group-body { display: none; }
+
+.control { margin-bottom: 0.7rem; }
 .control label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.3rem; }
 .control select, .control input[type=text], .control textarea {
   width: 100%; padding: 0.45rem 0.55rem; background: var(--panel-2);

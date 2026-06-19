@@ -8,6 +8,7 @@
   const DEFAULT_CONTEXT = {
     domain: "web-app",
     region: "global",
+    publicSector: "no",
     userScale: "1k-100k",
     latencySensitivity: "medium",
     dataSensitivity: "internal",

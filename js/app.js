@@ -201,14 +201,21 @@
     const regsEl=host.querySelector("#regs");
     function render() {
       const ctx=NFR.getContext(); const regs=NFR.applicableRegulations(catalog, ctx); const all=ranked(); const byId={}; all.forEach(n=>byId[n.id]=n);
-      if(!regs.length){ regsEl.innerHTML=`<p class="hint">No regulations triggered by this context. For example: set <b>Region = eu</b> and <b>Data Sensitivity = pii</b> for GDPR, or <b>Data Sensitivity = pci</b> for PCI-DSS.</p>`; return; }
-      regsEl.innerHTML=regs.map(r=>`
-        <div class="nfr-card" style="border-left-color:var(--bad);margin-bottom:.8rem">
+      if(!regs.length){ regsEl.innerHTML=`<p class="hint">No regulations triggered by this context. For example: set <b>Region = eu</b> and <b>Data Sensitivity = pii</b> for GDPR, <b>Data Sensitivity = pci</b> for PCI-DSS, <b>AI Usage = genai</b> in the EU for the AI Act, or <b>Public Sector = yes</b> in the US for FedRAMP.</p>`; return; }
+      const AREAS=[["privacy","Privacy & Data Protection"],["financial","Financial Services"],["healthcare","Healthcare & Life Sciences"],["security","Security & Assurance"],["ai","AI / ML Governance"],["accessibility","Accessibility"],["resilience","Operational Resilience"],["government","Government / Public Sector"]];
+      const card=r=>`
+        <div class="nfr-card" style="border-left-color:var(--bad);margin-bottom:.6rem">
           <div class="row"><div class="name">${esc(r.name)} — <span class="hint">${esc(r.full)}</span></div></div>
           <div class="kv" style="margin:.3rem 0"><b>Control reference:</b> ${esc(r.control)}</div>
           <div class="kv"><b>Makes mandatory:</b></div>
           <table class="tt"><tbody>${(r.drives||[]).map(id=>{const n=byId[id]; if(!n)return"";return `<tr><td><b>${esc(n.name)}</b></td><td>${sevChip(n.severity)}</td><td style="text-align:right">${esc((n.qa||{}).measure||"")}</td></tr>`;}).join("")}</tbody></table>
-        </div>`).join("");
+        </div>`;
+      let html=`<div class="hint" style="margin-bottom:.6rem">${regs.length} regulation${regs.length===1?"":"s"} in scope for this context.</div>`;
+      AREAS.forEach(([id,label])=>{ const inArea=regs.filter(r=>r.area===id); if(!inArea.length)return;
+        html+=`<h3>${esc(label)} <span class="hint">(${inArea.length})</span></h3>${inArea.map(card).join("")}`; });
+      const placed=new Set(AREAS.map(a=>a[0])); const rest=regs.filter(r=>!placed.has(r.area));
+      if(rest.length) html+=`<h3>Other</h3>${rest.map(card).join("")}`;
+      regsEl.innerHTML=html;
     }
     render(); return { onContext: render };
   }

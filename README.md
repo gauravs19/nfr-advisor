@@ -12,7 +12,13 @@ An interactive, structured advisor for **non-functional requirements (NFRs)**. I
 
 *The full journey, in one app: set context once → ranked NFRs (with the signals & alerts that verify them) → compliance → trade-off decisions → scenarios → maturity → readiness score & as-code export.*
 
-Grounded in **ISO/IEC 25010**, the **arc42 Quality Model (Q42)**, and **ATAM**. A single-page, data-driven app — static, no backend, no build step, deployable to GitHub Pages.
+Grounded in three open, widely-used standards so the output is defensible, not opinion:
+
+- **ISO/IEC 25010** — the international **software product-quality** standard. Its quality characteristics (performance, reliability, security, maintainability, usability, …) are the categories the NFRs are organised under.
+- **arc42 Quality Model (Q42)** — a practical, **scenario-based** catalogue of quality requirements from the popular arc42 architecture-documentation template.
+- **ATAM / SEI scenarios** — the **Architecture Tradeoff Analysis Method**, plus the **SEI 6-part scenario** (source · stimulus · artifact · environment · response · measure) — a precise, testable way to state a quality requirement.
+
+A single-page, data-driven app — static, no backend, no build step, deployable to GitHub Pages.
 
 > Most open resources are *catalogs* (arc42 Q42), *standards* (ISO 25010), or *manual methods* (ATAM). None walk an architect from **context → selection → trade-off → measurable criteria → as-code**. That intersection is what this tool fills.
 

@@ -1,5 +1,642 @@
 {
   "version": "2.0",
+    "observabilityRepo": "https://github.com/gauravs19/cloud-native-observability",
+    "observabilitySections": {
+      "01": {
+        "label": "Frontend / Client (RUM)",
+        "anchor": "01--frontend--client-rum"
+      },
+      "02": {
+        "label": "API Gateway / Ingress",
+        "anchor": "02--api-gateway--ingress"
+      },
+      "03": {
+        "label": "Service / Application",
+        "anchor": "03--service--application"
+      },
+      "04": {
+        "label": "Service Mesh / Sidecar",
+        "anchor": "04--service-mesh--sidecar"
+      },
+      "06": {
+        "label": "Load Balancer",
+        "anchor": "06--load-balancer"
+      },
+      "07": {
+        "label": "DNS / TLS / Certificates",
+        "anchor": "07--dns--tls--certificates"
+      },
+      "09": {
+        "label": "Database — Relational",
+        "anchor": "09--database--relational"
+      },
+      "10": {
+        "label": "Database — NoSQL / Document / Wide-column",
+        "anchor": "10--database--nosql--document--wide-column"
+      },
+      "12": {
+        "label": "Messaging / Streaming / Queues",
+        "anchor": "12--messaging--streaming--queues"
+      },
+      "13": {
+        "label": "Object / Block / File Storage",
+        "anchor": "13--object--block--file-storage"
+      },
+      "14": {
+        "label": "Host / VM / Compute",
+        "anchor": "14--host--vm--compute"
+      },
+      "16": {
+        "label": "Kubernetes Platform",
+        "anchor": "16--kubernetes-platform"
+      },
+      "19": {
+        "label": "gRPC / RPC",
+        "anchor": "19--grpc--rpc"
+      },
+      "20": {
+        "label": "GraphQL",
+        "anchor": "20--graphql"
+      },
+      "26": {
+        "label": "External / Third-party SaaS Dependencies",
+        "anchor": "26--external--third-party-saas-dependencies"
+      },
+      "27": {
+        "label": "Security & Identity",
+        "anchor": "27--security--identity"
+      },
+      "28": {
+        "label": "Cost / FinOps",
+        "anchor": "28--cost--finops"
+      },
+      "29": {
+        "label": "Business / Product KPIs",
+        "anchor": "29--business--product-kpis"
+      },
+      "30": {
+        "label": "Data Pipeline / ETL / Data Quality",
+        "anchor": "30--data-pipeline--etl--data-quality"
+      },
+      "31": {
+        "label": "AI / ML / LLM Serving",
+        "anchor": "31--ai--ml--llm-serving"
+      },
+      "32": {
+        "label": "CI/CD & Delivery (DORA)",
+        "anchor": "32--cicd--delivery-dora"
+      },
+      "33": {
+        "label": "Backup / DR / Resilience",
+        "anchor": "33--backup--dr--resilience"
+      },
+      "34": {
+        "label": "Alerting & On-call Health (meta-monitoring)",
+        "anchor": "34--alerting--on-call-health-meta-monitoring"
+      },
+      "35": {
+        "label": "Capacity Planning & Forecasting",
+        "anchor": "35--capacity-planning--forecasting"
+      },
+      "38": {
+        "label": "Compliance / Audit / Governance",
+        "anchor": "38--compliance--audit--governance"
+      },
+      "40": {
+        "label": "Sustainability / GreenOps",
+        "anchor": "40--sustainability--greenops"
+      }
+    },
+    "observability": {
+      "latency": {
+        "method": "RED",
+        "action": "page",
+        "sections": [
+          "01",
+          "03",
+          "06"
+        ],
+        "signals": [
+          "request_duration",
+          "error_rate"
+        ],
+        "alert": "HighLatencyP99"
+      },
+      "throughput": {
+        "method": "RED",
+        "action": "ticket",
+        "sections": [
+          "03",
+          "12"
+        ],
+        "signals": [
+          "request_rate",
+          "saturation"
+        ]
+      },
+      "scalability": {
+        "method": "USE",
+        "action": "ticket",
+        "sections": [
+          "16",
+          "35"
+        ],
+        "signals": [
+          "saturation",
+          "inflight_requests"
+        ]
+      },
+      "capacity-planning": {
+        "method": "USE",
+        "action": "ticket",
+        "sections": [
+          "35",
+          "14"
+        ],
+        "signals": [
+          "saturation",
+          "utilization_efficiency"
+        ]
+      },
+      "availability": {
+        "method": "GOLD",
+        "action": "page",
+        "sections": [
+          "03",
+          "33"
+        ],
+        "signals": [
+          "error_rate",
+          "slo_compliance"
+        ],
+        "alert": "ErrorBudgetBurnFast"
+      },
+      "fault-tolerance": {
+        "method": "GOLD",
+        "action": "ticket",
+        "sections": [
+          "03",
+          "04"
+        ],
+        "signals": [
+          "circuit_breaker_state",
+          "retry_rate",
+          "outlier_ejections"
+        ],
+        "alert": "DependencyErrorRateHigh"
+      },
+      "recoverability": {
+        "method": "GOLD",
+        "action": "page",
+        "sections": [
+          "33"
+        ],
+        "signals": [
+          "backup_success",
+          "rpo_actual",
+          "failover_readiness"
+        ]
+      },
+      "consistency": {
+        "method": "GOLD",
+        "action": "ticket",
+        "sections": [
+          "09",
+          "10"
+        ],
+        "signals": [
+          "db_replication_lag",
+          "late/out-of-order_events"
+        ],
+        "alert": "DbReplicationLagHigh"
+      },
+      "durability": {
+        "method": "RED",
+        "action": "page",
+        "sections": [
+          "13",
+          "33"
+        ],
+        "signals": [
+          "backup_success",
+          "replication_health"
+        ]
+      },
+      "safety": {
+        "method": "GOLD",
+        "action": "page",
+        "sections": [
+          "03",
+          "33"
+        ],
+        "signals": [
+          "error_rate",
+          "circuit_breaker_state"
+        ]
+      },
+      "confidentiality": {
+        "method": "RED",
+        "action": "page",
+        "sections": [
+          "27",
+          "07"
+        ],
+        "signals": [
+          "unusual_data_egress",
+          "cert_days_to_expiry"
+        ],
+        "alert": "CertificateExpiringSoon"
+      },
+      "integrity": {
+        "method": "GOLD",
+        "action": "page",
+        "sections": [
+          "27"
+        ],
+        "signals": [
+          "audit_log_gap",
+          "unusual_data_egress"
+        ]
+      },
+      "authz": {
+        "method": "RED",
+        "action": "page",
+        "sections": [
+          "27"
+        ],
+        "signals": [
+          "auth_failure_rate",
+          "failed_logins_per_account",
+          "mfa_challenge_failures"
+        ]
+      },
+      "auditability": {
+        "method": "GOLD",
+        "action": "page",
+        "sections": [
+          "27",
+          "38"
+        ],
+        "signals": [
+          "audit_log_gap",
+          "policy_compliance_pct"
+        ]
+      },
+      "privacy": {
+        "method": "USE",
+        "action": "ticket",
+        "sections": [
+          "38",
+          "27"
+        ],
+        "signals": [
+          "policy_compliance_pct",
+          "unusual_data_egress"
+        ]
+      },
+      "supply-chain-security": {
+        "method": "USE",
+        "action": "ticket",
+        "sections": [
+          "27"
+        ],
+        "signals": [
+          "vulnerability_count"
+        ]
+      },
+      "secrets-management": {
+        "method": "RED",
+        "action": "ticket",
+        "sections": [
+          "27"
+        ],
+        "signals": [
+          "secret_access_rate",
+          "cert_days_to_expiry"
+        ]
+      },
+      "patchability": {
+        "method": "USE",
+        "action": "ticket",
+        "sections": [
+          "27"
+        ],
+        "signals": [
+          "vulnerability_count"
+        ]
+      },
+      "session-management": {
+        "method": "RED",
+        "action": "ticket",
+        "sections": [
+          "27"
+        ],
+        "signals": [
+          "auth_failure_rate",
+          "mfa_challenge_failures"
+        ]
+      },
+      "rate-limiting": {
+        "method": "RED",
+        "action": "ticket",
+        "sections": [
+          "02",
+          "27"
+        ],
+        "signals": [
+          "waf_blocked_requests",
+          "ddos_mitigation_triggered",
+          "rate_limit_429s"
+        ]
+      },
+      "non-repudiation": {
+        "method": "GOLD",
+        "action": "ticket",
+        "sections": [
+          "27",
+          "38"
+        ],
+        "signals": [
+          "audit_log_gap",
+          "policy_compliance_pct"
+        ]
+      },
+      "modularity": {
+        "method": "4KM",
+        "action": "watch",
+        "sections": [
+          "32"
+        ],
+        "signals": [
+          "change_failure_rate"
+        ]
+      },
+      "testability": {
+        "method": "4KM",
+        "action": "watch",
+        "sections": [
+          "32"
+        ],
+        "signals": [
+          "pipeline_success",
+          "change_failure_rate"
+        ]
+      },
+      "modifiability": {
+        "method": "4KM",
+        "action": "ticket",
+        "sections": [
+          "32"
+        ],
+        "signals": [
+          "lead_time",
+          "deploy_frequency",
+          "change_failure_rate"
+        ]
+      },
+      "configurability": {
+        "method": "4KM",
+        "action": "watch",
+        "sections": [
+          "32"
+        ],
+        "signals": [
+          "feature_adoption",
+          "change_failure_rate"
+        ]
+      },
+      "traceability": {
+        "method": "GOLD",
+        "action": "watch",
+        "sections": [
+          "38",
+          "32"
+        ],
+        "signals": [
+          "policy_compliance_pct"
+        ]
+      },
+      "supportability": {
+        "method": "4KM",
+        "action": "watch",
+        "sections": [
+          "34"
+        ],
+        "signals": [
+          "mttr",
+          "mtta"
+        ]
+      },
+      "accessibility": {
+        "method": "GOLD",
+        "action": "watch",
+        "sections": [
+          "01"
+        ],
+        "signals": [
+          "synthetic_a11y_violations"
+        ]
+      },
+      "learnability": {
+        "method": "BIZ",
+        "action": "watch",
+        "sections": [
+          "01",
+          "29"
+        ],
+        "signals": [
+          "funnel_conversion_rate",
+          "feature_adoption"
+        ]
+      },
+      "usability-error-handling": {
+        "method": "BIZ",
+        "action": "watch",
+        "sections": [
+          "01",
+          "29"
+        ],
+        "signals": [
+          "frontend_errors",
+          "cart_abandonment"
+        ]
+      },
+      "interoperability": {
+        "method": "RED",
+        "action": "ticket",
+        "sections": [
+          "19",
+          "20",
+          "26"
+        ],
+        "signals": [
+          "dependency_call_errors",
+          "third_party_errors"
+        ]
+      },
+      "localization": {
+        "method": "BIZ",
+        "action": "watch",
+        "sections": [
+          "01",
+          "29"
+        ],
+        "signals": [
+          "funnel_conversion_rate"
+        ]
+      },
+      "backward-compatibility": {
+        "method": "RED",
+        "action": "ticket",
+        "sections": [
+          "02",
+          "20"
+        ],
+        "signals": [
+          "error_rate",
+          "graphql_deprecated_field_use"
+        ]
+      },
+      "portability": {
+        "method": "4KM",
+        "action": "watch",
+        "sections": [
+          "16",
+          "32"
+        ],
+        "signals": [
+          "deploy_frequency"
+        ]
+      },
+      "observability": {
+        "method": "GOLD",
+        "action": "ticket",
+        "sections": [
+          "34"
+        ],
+        "signals": [
+          "mttd",
+          "alert_volume"
+        ],
+        "alert": "TargetDown"
+      },
+      "cost-efficiency": {
+        "method": "BIZ",
+        "action": "ticket",
+        "sections": [
+          "28"
+        ],
+        "signals": [
+          "spend_vs_budget",
+          "cost_per_request",
+          "idle_resource_cost"
+        ]
+      },
+      "sustainability": {
+        "method": "BIZ",
+        "action": "watch",
+        "sections": [
+          "40"
+        ],
+        "signals": [
+          "energy/carbon_per_workload",
+          "utilization_efficiency",
+          "carbon_aware_scheduling"
+        ]
+      },
+      "data-quality": {
+        "method": "BIZ",
+        "action": "ticket",
+        "sections": [
+          "30"
+        ],
+        "signals": [
+          "validation_failures",
+          "null_rate",
+          "data_freshness"
+        ]
+      },
+      "data-retention": {
+        "method": "USE",
+        "action": "watch",
+        "sections": [
+          "38",
+          "13"
+        ],
+        "signals": [
+          "policy_compliance_pct"
+        ]
+      },
+      "data-lineage": {
+        "method": "GOLD",
+        "action": "watch",
+        "sections": [
+          "30"
+        ],
+        "signals": [
+          "schema_drift_detected",
+          "records_in vs out"
+        ]
+      },
+      "deployability": {
+        "method": "4KM",
+        "action": "page",
+        "sections": [
+          "32"
+        ],
+        "signals": [
+          "deploy_frequency",
+          "change_failure_rate",
+          "mttr",
+          "lead_time"
+        ]
+      },
+      "ai-explainability": {
+        "method": "GOLD",
+        "action": "watch",
+        "sections": [
+          "31"
+        ],
+        "signals": [
+          "model_drift",
+          "prediction_distribution"
+        ]
+      },
+      "ai-robustness": {
+        "method": "GOLD",
+        "action": "ticket",
+        "sections": [
+          "31"
+        ],
+        "signals": [
+          "model_drift",
+          "inference_error_rate",
+          "prediction_distribution"
+        ]
+      },
+      "ai-fairness": {
+        "method": "GOLD",
+        "action": "ticket",
+        "sections": [
+          "31"
+        ],
+        "signals": [
+          "prediction_distribution",
+          "disparate_impact"
+        ]
+      },
+      "ai-human-oversight": {
+        "method": "BIZ",
+        "action": "ticket",
+        "sections": [
+          "31"
+        ],
+        "signals": [
+          "override_rate",
+          "inference_error_rate"
+        ]
+      }
+    },
   "meta": {
     "name": "NFR Advisor Catalog",
     "basedOn": ["ISO/IEC 25010:2023", "arc42 Quality Model (Q42)", "ATAM / SEI Quality Attribute Scenarios"],

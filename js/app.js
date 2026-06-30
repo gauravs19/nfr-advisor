@@ -40,6 +40,25 @@
   const mandBadge = n => n.mandatory ? `<span class="mand" title="Mandatory — required by ${(n.regs||[]).map(regName).join(', ')}">MANDATORY</span>` : "";
   const ranked = () => NFR.rankAnnotated(catalog, NFR.getContext());
 
+  // observability mapping → cloud-native-observability catalog (verify each NFR in prod)
+  const OBS_REPO = catalog.observabilityRepo;
+  const OBS_ACTION = { page: ["🔴", "Page"], ticket: ["🟠", "Ticket"], watch: ["🟢", "Watch"] };
+  function obsBlock(n) {
+    const o = (catalog.observability || {})[n.id];
+    if (!o || !OBS_REPO) return "";
+    const secs = (o.sections || []).map(id => {
+      const s = (catalog.observabilitySections || {})[id];
+      return s ? `<a class="reg-chip" href="${OBS_REPO}/blob/main/CATALOG.md#${s.anchor}" target="_blank" rel="noopener" title="${esc(s.label)}">§${esc(id)} ${esc(s.label)}</a>` : "";
+    }).join("");
+    const [ai, al] = OBS_ACTION[o.action] || ["", o.action];
+    const metrics = (o.signals || []).map(m => `<span class="tag mono">${esc(m)}</span>`).join("");
+    const alert = o.alert ? ` · alert <a class="mono" href="${OBS_REPO}/blob/main/alerts/prometheus-rules.yml" target="_blank" rel="noopener">${esc(o.alert)}</a>` : "";
+    return `<h4>Observe in production</h4>
+      <div class="hint">Signal model <b>${esc(o.method)}</b> · <span class="obs-action ${esc(o.action)}">${ai} ${esc(al)}</span>${alert}</div>
+      <div style="margin:.35rem 0">${metrics}</div>
+      <div class="hint">Catalog: ${secs}</div>`;
+  }
+
   function switchTo(id) {
     activeId = id;
     viewEl.innerHTML = "";
@@ -243,7 +262,7 @@
     host.innerHTML = `
       <div class="panel">
         <h2>Applicable NFRs</h2>
-        <p class="hint">Grouped by ISO/IEC 25010 dimension and ranked within each. <span class="mand">MANDATORY</span> = required by a regulation in scope. Click an NFR to expand the full enterprise detail.</p>
+        <p class="hint">Grouped by ISO/IEC 25010 dimension and ranked within each. <span class="mand">MANDATORY</span> = required by a regulation in scope. Click an NFR to expand the full enterprise detail — including the <b>signals &amp; alerts</b> that verify it in production (mapped to the <a href="https://github.com/gauravs19/cloud-native-observability" target="_blank" rel="noopener">cloud-native observability catalog</a>).</p>
         <div class="toolbar">
           <input type="text" id="q" class="grow" placeholder="Filter by name / alias…">
           <select id="cat"><option value="">All dimensions</option>${catalog.categories.map(c=>`<option value="${c.id}">${esc(c.label)}</option>`).join("")}</select>
@@ -283,6 +302,7 @@
         <h4>Metrics</h4><div class="hint">${(n.metrics||[]).map(esc).join(" · ")}</div>
         <h4>Tactics &amp; patterns</h4><div class="hint">${(n.tactics||[]).map(esc).join(" · ")}</div>
         <h4>Fitness function</h4><div class="mono">${esc(n.fitnessFunction)}</div>
+        ${obsBlock(n)}
         ${(n.conflicts_with||[]).length?`<h4>Conflicts with</h4>${n.conflicts_with.map(c=>`<span class="tag">${esc(c)}</span>`).join("")}`:""}
         ${(n.reinforces||[]).length?`<h4>Reinforces</h4>${n.reinforces.map(c=>`<span class="tag">${esc(c)}</span>`).join("")}`:""}
       </div>`;

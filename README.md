@@ -8,19 +8,19 @@ Grounded in **ISO/IEC 25010**, the **arc42 Quality Model (Q42)**, and **ATAM**. 
 
 ## How to use it
 
-One page, one persistent **System context** rail on the left (15 dimensions — domain, region/jurisdiction, scale, data sensitivity, availability target, criticality, architecture style, users, residency, lifecycle, AI usage…), and seven views as tabs. Set the context once — every tab reacts live. A **dark / light theme toggle** (top right) is remembered across sessions.
+One page, one persistent **System context** rail on the left (15 dimensions — domain, region/jurisdiction, scale, data sensitivity, availability target, criticality, architecture style, users, residency, lifecycle, AI usage…), and seven views as tabs. Set the context once — every tab reacts live. A **Share** button (top right) copies a permalink that encodes your whole assessment into the URL; a **dark / light theme toggle** is remembered across sessions.
 
-The catalog covers **30 NFRs** across 9 dimensions (incl. privacy, sustainability/green IT, supply-chain security, safety, data quality, and **AI/ML quality** — explainability, robustness/drift).
+The catalog covers **45 NFRs** across **9 quality categories**, and reacts to **16 context dimensions** (incl. privacy, sustainability/green IT, supply-chain security, safety, data quality, and **AI/ML quality** — explainability, robustness/drift).
 
 | Tab | What it does |
 |-----|--------------|
 | **Overview** | Cross-dimension dashboard: headline stats (relevant / mandatory / regulations / unresolved trade-offs / avg maturity gap), compliance regimes in scope, coverage-by-dimension chart, top priorities, open risks. |
 | **Applicable NFRs** | NFRs grouped into collapsible **ISO/IEC 25010 dimension sections**, ranked within each, with **severity** chips and **MANDATORY** flags. Expand for business impact, compliance drivers, the full **SEI 6-part quality attribute scenario**, the **Why** (exact rules fired), metrics, tactics/patterns, fitness function, conflicts/reinforces. |
-| **Compliance** | Regulations triggered by the context (**GDPR, HIPAA, PCI-DSS, SOC 2, ISO 27001, DORA**), each with its control reference and the NFRs it makes mandatory. |
+| **Compliance** | Regulations triggered by the context — **25 standards across 8 regulatory areas** (GDPR, HIPAA, PCI-DSS, SOC 2, ISO 27001, DORA, EU AI Act, FedRAMP, …) — each with its control reference and the NFRs it makes mandatory. |
 | **Trade-offs** | An N×N **trade-off matrix**; click a conflict cell to prioritize one quality over another; resolved conflicts become ADRs. |
 | **Scenarios** | Full **SEI 6-part** quality attribute scenario editor (source / stimulus / artifact / environment / response / measure) with quantified SLOs. |
 | **Maturity & Gaps** | Rate current maturity (0–5) vs target per NFR; gap bars; a prioritized remediation **roadmap** (mandatory + severity + gap weighted); owner assignment. |
-| **Export** | `nfrs.yaml` (SLOs, compliance, maturity), `nfrs.md` (governance spec), and trade-off **ADRs**. |
+| **Export** | `nfrs.yaml` (SLOs, compliance, maturity), `nfrs.md` (governance spec), and trade-off **ADRs**. Also exports/imports the full assessment **state as JSON** for backup or transfer. |
 
 > An earlier p5.js canvas version is archived at tag `v0.1-canvas` / branch `archive/canvas-microsim`.
 
@@ -50,4 +50,4 @@ Vanilla JS + semantic HTML tables + CSS. No frameworks, no build step, no extern
 - LLM-assisted context intake (free-text system description → context profile)
 - Emit runnable fitness-function stubs (ArchUnit / k6 / axe) from the measures
 - Custom catalogs / org-specific NFRs
-- Shareable permalinks (encode state in URL)
+- ~~Shareable permalinks (encode state in URL)~~ — ✅ shipped (the **Share** button)

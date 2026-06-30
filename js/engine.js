@@ -41,6 +41,14 @@
   function setContext(ctx) { const s = loadState(); s.context = ctx; saveState(s); }
   function patchContext(key, value) { const s = loadState(); s.context[key] = value; saveState(s); return s.context; }
 
+  // full reset: context AND every assessment map, so no stale data lingers
+  // for NFRs that are no longer in scope.
+  function resetAll() {
+    const fresh = { context: Object.assign({}, DEFAULT_CONTEXT), priorities: {}, scenarios: {}, maturity: {}, owners: {} };
+    saveState(fresh);
+    return fresh.context;
+  }
+
   function getPriorities() { return loadState().priorities || {}; }
   function setPriority(edgeKey, winnerId) { const s = loadState(); s.priorities = s.priorities || {}; s.priorities[edgeKey] = winnerId; saveState(s); }
 
@@ -51,6 +59,29 @@
   function setMaturity(nfrId, level) { const s = loadState(); s.maturity = s.maturity || {}; s.maturity[nfrId] = level; saveState(s); }
   function getOwners() { return loadState().owners || {}; }
   function setOwner(nfrId, owner) { const s = loadState(); s.owners = s.owners || {}; s.owners[nfrId] = owner; saveState(s); }
+
+  // ---- shareable state (permalinks + JSON import/export) ----
+  // unicode-safe base64 of the whole persisted state object
+  function encodeState() {
+    try { return btoa(unescape(encodeURIComponent(JSON.stringify(loadState())))); }
+    catch (e) { return ""; }
+  }
+  function decodeState(str) {
+    try { return JSON.parse(decodeURIComponent(escape(atob(str)))); }
+    catch (e) { return null; }
+  }
+  // merge an imported state object over the defaults and persist it
+  function importState(obj) {
+    if (!obj || typeof obj !== "object") return false;
+    saveState({
+      context: Object.assign({}, DEFAULT_CONTEXT, obj.context || {}),
+      priorities: obj.priorities || {},
+      scenarios: obj.scenarios || {},
+      maturity: obj.maturity || {},
+      owners: obj.owners || {}
+    });
+    return true;
+  }
 
   // ---- catalog loading ----
   let _catalog = null;
@@ -218,7 +249,8 @@
   global.NFR = {
     DEFAULT_CONTEXT,
     loadState, saveState,
-    getContext, setContext, patchContext,
+    getContext, setContext, patchContext, resetAll,
+    encodeState, decodeState, importState,
     getPriorities, setPriority,
     getScenarios, setScenario,
     getMaturity, setMaturity, getOwners, setOwner,

@@ -2,7 +2,7 @@
   --bg: #0f172a;
   --panel: #1e293b;
   --panel-2: #273449;
-  --code-bg: var(--code-bg);
+  --code-bg: #0b1220;
   --ink: #e2e8f0;
   --muted: #94a3b8;
   --line: #334155;
@@ -301,3 +301,7 @@ footer.app-footer a { color: var(--accent); }
 footer.app-footer .spacer { flex: 1; }
 select[data-mat] { padding: 0.25rem 0.4rem; background: var(--panel-2); border: 1px solid var(--line); color: var(--ink); border-radius: 6px; }
 table.data input[type=text] { padding: 0.3rem 0.45rem; background: var(--panel-2); border: 1px solid var(--line); color: var(--ink); border-radius: 6px; }
+
+/* accessibility */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }

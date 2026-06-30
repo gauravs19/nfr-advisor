@@ -494,8 +494,14 @@
 
     // ---------- decision popover (desktop) / modal (mobile) ----------
     let popEl=null, backdropEl=null;
-    function closePop(){ if(popEl){popEl.remove();popEl=null;} if(backdropEl){backdropEl.remove();backdropEl=null;} document.removeEventListener("keydown",onEsc); }
+    function closePop(){ if(popEl){popEl.remove();popEl=null;} if(backdropEl){backdropEl.remove();backdropEl=null;}
+      document.removeEventListener("keydown",onEsc);
+      document.removeEventListener("mousedown",onOutside,true);
+      window.removeEventListener("scroll",onScroll,true);
+      window.removeEventListener("resize",closePop); }
     function onEsc(e){ if(e.key==="Escape") closePop(); }
+    function onOutside(e){ if(popEl && !popEl.contains(e.target)) closePop(); }   // click anywhere outside dismisses
+    function onScroll(){ closePop(); }   // a fixed popover can't follow the cell, so close on scroll
     function placePop(anchor){
       if(popEl.classList.contains("modal")||!anchor) return;
       const r=anchor.getBoundingClientRect(), pw=popEl.offsetWidth, ph=popEl.offsetHeight;
@@ -513,6 +519,9 @@
       popEl.setAttribute("role","dialog"); popEl.setAttribute("aria-modal","true"); popEl.setAttribute("aria-label",label);
       host.appendChild(popEl);
       document.addEventListener("keydown",onEsc);
+      setTimeout(() => document.addEventListener("mousedown",onOutside,true), 0);   // defer so the opening click doesn't self-close
+      window.addEventListener("scroll",onScroll,true);
+      window.addEventListener("resize",closePop);
       return popEl;
     }
     function openTradeoff(a,b,anchor){

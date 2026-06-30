@@ -203,9 +203,7 @@ table.data tr.row-detail td { background: var(--code-bg); }
 .matrix td.conflict.lose { background: var(--lose-bg); color: var(--lose-ink); }
 .matrix td.conflict.balanced { background: var(--med-bg); color: var(--med-ink); }
 .matrix td.reinforce { background: var(--reinforce-bg); cursor: pointer; }
-.matrix td.conflict:not(.lo):hover, .matrix td.reinforce:not(.lo):hover { outline: 2px solid var(--accent); outline-offset: -2px; }
-.matrix th.lo { opacity: 0.45; font-weight: 400; }
-.matrix td.conflict.lo, .matrix td.reinforce.lo { opacity: 0.35; cursor: default; }
+.matrix td.conflict:hover, .matrix td.reinforce:hover { outline: 2px solid var(--accent); outline-offset: -2px; }
 
 /* trade-off decision popover / modal */
 .to-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 60; }

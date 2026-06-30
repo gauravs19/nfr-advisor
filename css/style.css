@@ -311,3 +311,38 @@ table.data input[type=text] { padding: 0.3rem 0.45rem; background: var(--panel-2
 /* accessibility */
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+/* inline jargon term */
+.term { text-decoration: underline dotted; text-underline-offset: 2px; cursor: help; }
+
+/* journey progress strip */
+.journey {
+  max-width: 1200px; margin: 0 auto; padding: 0.6rem 1.25rem 0;
+  display: flex; gap: 0.4rem; overflow-x: auto;
+}
+.jstep {
+  display: flex; align-items: center; gap: 0.4rem; white-space: nowrap;
+  padding: 0.3rem 0.6rem; border-radius: 999px; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--line); color: var(--muted); font-size: 0.78rem;
+}
+.jstep:hover { color: var(--ink); border-color: var(--accent); }
+.jstep.active { border-color: var(--accent); color: var(--ink); box-shadow: 0 0 0 1px var(--accent) inset; }
+.jstep .jnum { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; border-radius: 50%; background: var(--panel-2); font-size: 0.6rem; font-weight: 700; }
+.jstep .jicon { font-size: 0.78rem; }
+.jstep.done .jicon { color: var(--good); }
+.jstep.partial .jicon { color: var(--warn); }
+.jstep.todo .jicon { color: var(--muted); }
+.jstep.info .jicon { color: var(--accent); }
+.jstep .jnote { font-weight: 700; color: var(--ink); }
+@media (max-width: 560px) { .jstep .jlabel { display: none; } }
+
+/* "what changed" toast */
+.toast {
+  position: fixed; left: 50%; bottom: 1.2rem; transform: translateX(-50%) translateY(140%);
+  display: flex; flex-wrap: wrap; gap: 0.4rem; max-width: 92vw;
+  background: var(--panel); border: 1px solid var(--accent); border-radius: 10px;
+  padding: 0.5rem 0.7rem; box-shadow: 0 6px 24px rgba(0,0,0,0.35);
+  opacity: 0; transition: transform 0.25s ease, opacity 0.25s ease; z-index: 50; pointer-events: none;
+}
+.toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+.toast span { font-size: 0.8rem; background: var(--panel-2); border-radius: 6px; padding: 0.15rem 0.5rem; }

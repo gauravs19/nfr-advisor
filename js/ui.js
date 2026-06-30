@@ -18,9 +18,9 @@
       return `<div class="control"><label>${dim.label}</label><select data-dim="${dim.id}">${opts}</select></div>`;
     }
     const buttons = dim.options.map(opt =>
-      `<button data-dim="${dim.id}" data-val="${opt}" class="${ctx[dim.id] === opt ? "active" : ""}">${opt}</button>`
+      `<button data-dim="${dim.id}" data-val="${opt}" aria-pressed="${ctx[dim.id] === opt ? "true" : "false"}" class="${ctx[dim.id] === opt ? "active" : ""}">${opt}</button>`
     ).join("");
-    return `<div class="control"><label>${dim.label}</label><div class="seg">${buttons}</div></div>`;
+    return `<div class="control"><label id="lbl-${dim.id}">${dim.label}</label><div class="seg" role="group" aria-labelledby="lbl-${dim.id}">${buttons}</div></div>`;
   }
 
   function renderContextRail(host, catalog, onChange, profiles) {
@@ -28,7 +28,7 @@
     const byId = {}; catalog.contextDimensions.forEach(d => byId[d.id] = d);
     const used = new Set();
 
-    let html = `<div class="rail-head"><h2>System context</h2><button class="btn secondary" id="resetCtx">Reset</button></div>`;
+    let html = `<div class="rail-head"><h2>System context</h2><button class="btn secondary" id="resetCtx" title="Clear the context and all assessments (maturity, trade-offs, scenarios)">Reset</button></div>`;
     if (profiles && profiles.length) {
       html += `<div class="control quickstart"><label>⚡ Quick start — load an example</label>
         <select id="profileSel"><option value="">Choose a system profile…</option>${profiles.map((p, i) => `<option value="${i}">${p.name}</option>`).join("")}</select></div>`;
@@ -51,8 +51,9 @@
     host.querySelectorAll(".seg button").forEach(btn => {
       btn.addEventListener("click", () => {
         const dim = btn.getAttribute("data-dim"), val = btn.getAttribute("data-val");
-        host.querySelectorAll(`button[data-dim="${dim}"]`).forEach(b => b.classList.remove("active"));
+        host.querySelectorAll(`button[data-dim="${dim}"]`).forEach(b => { b.classList.remove("active"); b.setAttribute("aria-pressed", "false"); });
         btn.classList.add("active");
+        btn.setAttribute("aria-pressed", "true");
         onChange(NFR.patchContext(dim, val));
       });
     });
@@ -64,7 +65,7 @@
     }));
     const reset = host.querySelector("#resetCtx");
     if (reset) reset.addEventListener("click", () => {
-      NFR.setContext(Object.assign({}, NFR.DEFAULT_CONTEXT));
+      NFR.resetAll();
       renderContextRail(host, catalog, onChange, profiles);
       onChange(NFR.getContext());
     });

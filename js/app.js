@@ -7,6 +7,17 @@
   const railEl = document.getElementById("rail");
   const viewEl = document.getElementById("view");
 
+  // hydrate from a shared permalink (#s=<base64>) before anything reads state,
+  // then strip the hash so a later refresh keeps locally-edited state.
+  (function () {
+    const m = /[#&]s=([^&]*)/.exec(location.hash);
+    if (!m) return;
+    const decoded = NFR.decodeState(decodeURIComponent(m[1]));
+    if (decoded && NFR.importState(decoded)) {
+      try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+    }
+  })();
+
   const VIEWS = [
     { id: "overview",   label: "Overview",        mount: mountOverview },
     { id: "applicable", label: "Applicable NFRs", mount: mountApplicable },
@@ -32,7 +43,12 @@
   function switchTo(id) {
     activeId = id;
     viewEl.innerHTML = "";
-    [...tabsEl.children].forEach(a => a.classList.toggle("active", a.dataset.id === id));
+    [...tabsEl.children].forEach(a => {
+      const on = a.dataset.id === id;
+      a.classList.toggle("active", on);
+      a.setAttribute("aria-selected", on ? "true" : "false");
+      a.tabIndex = on ? 0 : -1;
+    });
     const idx = VIEWS.findIndex(x => x.id === id);
     current = VIEWS[idx].mount(viewEl) || null;
     // workflow Back / Next nav
@@ -55,8 +71,21 @@
     maturity: "Score where you are vs target, and get a prioritized remediation roadmap.",
     export: "Take it with you: nfrs.yaml, a governance spec, and trade-off ADRs."
   };
-  tabsEl.innerHTML = VIEWS.map((v, i) => `<a href="#${v.id}" data-id="${v.id}" title="${TAB_HELP[v.id] || ""}"><span class="step">${i + 1}</span>${v.label}</a>`).join("");
+  tabsEl.innerHTML = VIEWS.map((v, i) => `<a href="#${v.id}" data-id="${v.id}" role="tab" aria-selected="false" tabindex="-1" title="${TAB_HELP[v.id] || ""}"><span class="step">${i + 1}</span>${v.label}</a>`).join("");
   tabsEl.querySelectorAll("a").forEach(a => a.addEventListener("click", e => { e.preventDefault(); switchTo(a.dataset.id); }));
+  // roving-tabindex keyboard navigation across the tablist
+  tabsEl.addEventListener("keydown", e => {
+    const tabs = [...tabsEl.children];
+    let idx = tabs.findIndex(a => a.dataset.id === activeId);
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") idx = (idx + 1) % tabs.length;
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") idx = (idx - 1 + tabs.length) % tabs.length;
+    else if (e.key === "Home") idx = 0;
+    else if (e.key === "End") idx = tabs.length - 1;
+    else return;
+    e.preventDefault();
+    switchTo(tabs[idx].dataset.id);
+    tabs[idx].focus();
+  });
 
   const PROFILES = [
     { name: "EU fintech (cards)", context: { domain: "fintech-trading", region: "eu", dataSensitivity: "pci", availabilityTarget: "99.99", systemCriticality: "mission-critical", deployment: "multi-region", userType: "b2c-public", dataResidency: "strict", architectureStyle: "microservices", lifecycleStage: "mature" } },
@@ -76,6 +105,15 @@
     applyThemeIcon();
   });
   applyThemeIcon();
+
+  const shareBtn = document.getElementById("shareBtn");
+  if (shareBtn) shareBtn.addEventListener("click", () => {
+    const url = location.origin + location.pathname + "#s=" + encodeURIComponent(NFR.encodeState());
+    const flash = () => { const t = shareBtn.textContent; shareBtn.textContent = "✓ Copied"; setTimeout(() => { shareBtn.textContent = t; }, 1400); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(flash, () => prompt("Copy this link:", url));
+    else prompt("Copy this link:", url);
+  });
+
   switchTo(activeId);
 
   // ============================ OVERVIEW ============================
@@ -330,11 +368,11 @@
     function render() {
       const rk=ranked().filter(n=>n.tier!=="low"); const pr=NFR.getPriorities();
       if(rk.length<2){matrixWrap.innerHTML=`<p class="hint">Need at least two relevant NFRs to compare. Adjust the context.</p>`;listEl.innerHTML="";return;}
-      let html=`<table class="matrix"><thead><tr><th class="rh"></th>`+rk.map((n,i)=>`<th class="ch" title="${esc(n.name)}">${i+1}</th>`).join("")+`</tr></thead><tbody>`;
-      rk.forEach((rowN,ri)=>{ html+=`<tr><th class="rh" title="${esc(rowN.name)}">${ri+1} · ${esc(rowN.name)}</th>`;
+      let html=`<table class="matrix" aria-label="NFR trade-off matrix"><caption class="sr-only">Trade-off matrix: each row NFR versus each column NFR. Cells mark conflicts and reinforcements; click a conflict cell to prioritize the row NFR over the column NFR.</caption><thead><tr><th class="rh"></th>`+rk.map((n,i)=>`<th class="ch" scope="col" title="${esc(n.name)}">${i+1}</th>`).join("")+`</tr></thead><tbody>`;
+      rk.forEach((rowN,ri)=>{ html+=`<tr><th class="rh" scope="row" title="${esc(rowN.name)}">${ri+1} · ${esc(rowN.name)}</th>`;
         rk.forEach((colN,ci)=>{ if(ri===ci){html+=`<td class="self">—</td>`;return;}
           const r=rel(rowN,colN);
-          if(r==="conflict"){const w=pr[keyOf(rowN.id,colN.id)];const cls=w?(w===rowN.id?"win":"lose"):"";const mk=w?(w===rowN.id?"✓":"·"):"✕";html+=`<td class="conflict ${cls}" data-row="${rowN.id}" data-col="${colN.id}" title="${esc(rowN.name)} ↔ ${esc(colN.name)}">${mk}</td>`;}
+          if(r==="conflict"){const w=pr[keyOf(rowN.id,colN.id)];const cls=w?(w===rowN.id?"win":"lose"):"";const mk=w?(w===rowN.id?"✓":"·"):"✕";const lbl=`${esc(rowN.name)} conflicts with ${esc(colN.name)}${w?(w===rowN.id?" — "+esc(rowN.name)+" prioritized":" — "+esc(colN.name)+" prioritized"):" — unresolved"}`;html+=`<td class="conflict ${cls}" data-row="${rowN.id}" data-col="${colN.id}" title="${esc(rowN.name)} ↔ ${esc(colN.name)}" aria-label="${lbl}">${mk}</td>`;}
           else if(r==="reinforce"){html+=`<td class="reinforce" title="reinforces">+</td>`;} else html+=`<td></td>`; });
         html+=`</tr>`; });
       html+=`</tbody></table>`; matrixWrap.innerHTML=html;
@@ -411,9 +449,15 @@
       <div class="panel" style="margin-bottom:1rem">
         <h2>Export</h2>
         <p class="hint"><b>nfrs.yaml</b> machine-readable (SLOs, compliance, maturity); <b>nfrs.md</b> the governance spec; <b>ADRs</b> the trade-off decisions.</p>
-        <div class="row"><div class="seg" style="max-width:360px">
-          <button class="active" data-tab="yaml">nfrs.yaml</button><button data-tab="md">nfrs.md</button><button data-tab="adr">ADRs</button>
+        <div class="row"><div class="seg" style="max-width:360px" role="group" aria-label="Export format">
+          <button class="active" data-tab="yaml" aria-pressed="true">nfrs.yaml</button><button data-tab="md" aria-pressed="false">nfrs.md</button><button data-tab="adr" aria-pressed="false">ADRs</button>
         </div><span class="spacer"></span><button class="btn secondary" id="copyBtn">Copy</button><button class="btn" id="dlBtn">Download</button></div>
+        <div class="row" style="margin-top:.7rem;padding-top:.7rem;border-top:1px solid var(--line)">
+          <span class="hint" style="flex:1">Full assessment state (context · scenarios · trade-offs · maturity) — back up, transfer between machines, or re-import later.</span>
+          <button class="btn secondary" id="expStateBtn">Export state (.json)</button>
+          <button class="btn secondary" id="impStateBtn">Import state</button>
+          <input type="file" id="impStateFile" accept="application/json,.json" hidden>
+        </div>
       </div>
       <pre class="export" id="out"></pre>`;
     const out=host.querySelector("#out"); let tab="yaml";
@@ -437,9 +481,14 @@
     const content=()=>tab==="yaml"?toYaml():tab==="md"?toMd():toAdr();
     const filename=()=>tab==="yaml"?"nfrs.yaml":tab==="md"?"nfrs.md":"adr-tradeoffs.md";
     const render=()=>out.textContent=content();
-    host.querySelectorAll("button[data-tab]").forEach(b=>b.addEventListener("click",()=>{host.querySelectorAll("button[data-tab]").forEach(x=>x.classList.remove("active"));b.classList.add("active");tab=b.dataset.tab;render();}));
+    host.querySelectorAll("button[data-tab]").forEach(b=>b.addEventListener("click",()=>{host.querySelectorAll("button[data-tab]").forEach(x=>{x.classList.remove("active");x.setAttribute("aria-pressed","false");});b.classList.add("active");b.setAttribute("aria-pressed","true");tab=b.dataset.tab;render();}));
     host.querySelector("#copyBtn").addEventListener("click",()=>{navigator.clipboard.writeText(content());const btn=host.querySelector("#copyBtn");const t=btn.textContent;btn.textContent="Copied!";setTimeout(()=>btn.textContent=t,1200);});
     host.querySelector("#dlBtn").addEventListener("click",()=>{const blob=new Blob([content()],{type:"text/plain"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=filename();a.click();URL.revokeObjectURL(a.href);});
+    // full-state JSON export / import
+    host.querySelector("#expStateBtn").addEventListener("click",()=>{const blob=new Blob([JSON.stringify(NFR.loadState(),null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="nfr-advisor-state.json";a.click();URL.revokeObjectURL(a.href);});
+    const impFile=host.querySelector("#impStateFile");
+    host.querySelector("#impStateBtn").addEventListener("click",()=>impFile.click());
+    impFile.addEventListener("change",()=>{const f=impFile.files&&impFile.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{let ok=false;try{ok=NFR.importState(JSON.parse(r.result));}catch(e){}if(ok)location.reload();else alert("Could not import: not a valid NFR Advisor state file.");};r.readAsText(f);});
     render(); return { onContext: render };
   }
 })();

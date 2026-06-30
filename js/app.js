@@ -278,7 +278,6 @@
     try { if (!localStorage.getItem("nfr-seen-guide")) { guideDetails.open = true; localStorage.setItem("nfr-seen-guide", "1"); } } catch (e) {}
 
     function render() {
-      const assessed = Object.keys(NFR.getMaturity()).length;
       const all = ranked();
       const relevant = all.filter(n=>n.tier!=="low"), high=all.filter(n=>n.tier==="high"), med=all.filter(n=>n.tier==="medium");
       const mandatory = all.filter(n=>n.mandatory);
@@ -315,12 +314,13 @@
         ? `<table class="tt"><tbody>${unresolved.map(e=>`<tr><td>${esc(e.a.name)} ↔ ${esc(e.b.name)}</td><td style="text-align:right"><span class="pill conflict">unresolved</span></td></tr>`).join("")}</tbody></table><p class="hint" style="margin-top:.5rem">Resolve on the <b>Trade-offs</b> tab.</p>`
         : (conflicts.length?`<p class="hint">All ${conflicts.length} trade-offs resolved. ✓</p>`:`<p class="hint">No trade-off tensions for this context.</p>`);
 
-      // recommended next step
+      // recommended next step — follows the journey order; the score lives on Export
+      const assessedRel = relevant.filter(n => typeof mat[n.id] === "number").length;
       let step;
-      if (relevant.length === 0) step = { go: null, txt: "Set your system context on the left to begin." };
-      else if (!assessed) step = { go: "maturity", txt: `Assess maturity for your ${relevant.length} relevant NFRs to compute your readiness score.` };
-      else if (unresolved.length) step = { go: "tradeoffs", txt: `Resolve ${unresolved.length} open trade-off${unresolved.length===1?"":"s"} — each becomes an ADR.` };
-      else step = { go: "export", txt: "You're in good shape — export your NFR spec, ADRs, and governance report." };
+      if (relevant.length === 0) step = { go: null, txt: "Set your system context on the left to begin — every tab reacts to it." };
+      else if (unresolved.length) step = { go: "tradeoffs", txt: `Resolve ${unresolved.length} open trade-off${unresolved.length===1?"":"s"} on the Trade-offs tab — each becomes an ADR.` };
+      else if (assessedRel < relevant.length) step = { go: "maturity", txt: `Assess maturity for ${relevant.length - assessedRel} of your ${relevant.length} relevant NFRs — it drives the readiness score shown on Export.` };
+      else step = { go: "export", txt: "You're set — see your readiness score & grade and download the spec, ADRs, and governance report on Export." };
       nextStepEl.innerHTML = `<h2 style="margin:0 0 .3rem">✅ Recommended next step</h2><div class="row"><span class="hint" style="flex:1">${step.txt}</span>${step.go?`<button class="btn" id="nsBtn">Go →</button>`:""}</div>`;
       const nsBtn = nextStepEl.querySelector("#nsBtn");
       if (nsBtn) nsBtn.addEventListener("click", () => switchTo(step.go));

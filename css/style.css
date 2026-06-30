@@ -68,16 +68,8 @@ header.topbar {
   border-bottom: 1px solid var(--line);
   position: sticky; top: 0; z-index: 10;
 }
-header.topbar .brand { font-weight: 700; letter-spacing: 0.3px; }
+header.topbar .brand { font-weight: 700; letter-spacing: 0.3px; margin-right: auto; }
 header.topbar .brand span { color: var(--accent); }
-header.topbar nav { display: flex; gap: 0.25rem; flex-wrap: wrap; margin-left: auto; }
-header.topbar nav a {
-  padding: 0.35rem 0.7rem; border-radius: 8px; color: var(--muted);
-  font-size: 0.85rem;
-}
-header.topbar nav a.active, header.topbar nav a:hover {
-  background: var(--panel-2); color: var(--ink); text-decoration: none;
-}
 
 .wrap { max-width: 1200px; margin: 0 auto; padding: 1.25rem; }
 .layout { display: grid; grid-template-columns: 300px 1fr; gap: 1rem; align-items: start; }
@@ -308,10 +300,6 @@ table.data tr.row-detail td { background: var(--code-bg); }
 /* maturity gap bar */
 .gap-bar { display: inline-block; width: 64px; height: 8px; border-radius: 4px; background: var(--code-bg); overflow: hidden; vertical-align: middle; margin-right: 0.35rem; }
 .gap-bar > i { display: block; height: 100%; }
-
-/* tab step numbers */
-header.topbar nav a .step { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; margin-right: 0.35rem; border-radius: 50%; background: var(--panel); color: var(--muted); font-size: 0.62rem; font-weight: 700; }
-header.topbar nav a.active .step { background: var(--accent); color: var(--on-accent); }
 
 /* readiness score panel */
 .score-panel { display: flex; align-items: center; gap: 1.2rem; }

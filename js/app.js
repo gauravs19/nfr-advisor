@@ -3,7 +3,6 @@
   const catalog = await NFR.loadCatalog();
   const fv = document.getElementById("footVersion");
   if (fv) fv.textContent = `v${catalog.version} · ${catalog.nfrs.length} NFRs · ${catalog.regulations.length} standards · ${catalog.contextDimensions.length} context dims`;
-  const tabsEl = document.getElementById("tabs");
   const railEl = document.getElementById("rail");
   const viewEl = document.getElementById("view");
 
@@ -118,7 +117,7 @@
     ];
     const ICON = { done: "✓", partial: "◐", todo: "○", info: "•" };
     journeyEl.innerHTML = steps.map((s, i) =>
-      `<button class="jstep ${s.state}${s.id === activeId ? " active" : ""}" data-go="${s.id}">
+      `<button class="jstep ${s.state}${s.id === activeId ? " active" : ""}" data-go="${s.id}" title="${esc(TAB_HELP[s.id] || "")}"${s.id === activeId ? ' aria-current="step"' : ""}>
         <span class="jnum">${i + 1}</span><span class="jicon" aria-hidden="true">${ICON[s.state]}</span>
         <span class="jlabel">${esc(s.label)}</span>${s.note ? `<span class="jnote">${esc(s.note)}</span>` : ""}</button>`
     ).join("");
@@ -156,12 +155,6 @@
   function switchTo(id) {
     activeId = id;
     viewEl.innerHTML = "";
-    [...tabsEl.children].forEach(a => {
-      const on = a.dataset.id === id;
-      a.classList.toggle("active", on);
-      a.setAttribute("aria-selected", on ? "true" : "false");
-      a.tabIndex = on ? 0 : -1;
-    });
     const idx = VIEWS.findIndex(x => x.id === id);
     current = VIEWS[idx].mount(viewEl) || null;
     // workflow Back / Next nav
@@ -185,22 +178,6 @@
     maturity: "Score where you are vs target, and get a prioritized remediation roadmap.",
     export: "The verdict: your readiness score & grade, then nfrs.yaml, a governance spec, and trade-off ADRs."
   };
-  tabsEl.innerHTML = VIEWS.map((v, i) => `<a href="#${v.id}" data-id="${v.id}" role="tab" aria-selected="false" tabindex="-1" title="${TAB_HELP[v.id] || ""}"><span class="step">${i + 1}</span>${v.label}</a>`).join("");
-  tabsEl.querySelectorAll("a").forEach(a => a.addEventListener("click", e => { e.preventDefault(); switchTo(a.dataset.id); }));
-  // roving-tabindex keyboard navigation across the tablist
-  tabsEl.addEventListener("keydown", e => {
-    const tabs = [...tabsEl.children];
-    let idx = tabs.findIndex(a => a.dataset.id === activeId);
-    if (e.key === "ArrowRight" || e.key === "ArrowDown") idx = (idx + 1) % tabs.length;
-    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") idx = (idx - 1 + tabs.length) % tabs.length;
-    else if (e.key === "Home") idx = 0;
-    else if (e.key === "End") idx = tabs.length - 1;
-    else return;
-    e.preventDefault();
-    switchTo(tabs[idx].dataset.id);
-    tabs[idx].focus();
-  });
-
   const PROFILES = [
     { name: "EU fintech (cards)", context: { domain: "fintech-trading", region: "eu", dataSensitivity: "pci", availabilityTarget: "99.99", systemCriticality: "mission-critical", deployment: "multi-region", userType: "b2c-public", dataResidency: "strict", architectureStyle: "microservices", lifecycleStage: "mature" } },
     { name: "US healthcare SaaS", context: { domain: "healthcare", region: "us", dataSensitivity: "phi", availabilityTarget: "99.99", systemCriticality: "tier-1", userType: "b2b-partner", dataResidency: "regional", architectureStyle: "modular-monolith", lifecycleStage: "growth" } },

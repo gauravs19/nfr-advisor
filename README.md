@@ -18,7 +18,7 @@ Grounded in **ISO/IEC 25010**, the **arc42 Quality Model (Q42)**, and **ATAM**. 
 
 One page, one persistent **System context** rail on the left (15 dimensions — domain, region/jurisdiction, scale, data sensitivity, availability target, criticality, architecture style, users, residency, lifecycle, AI usage…), and seven views as tabs. Set the context once — every tab reacts live. A **Share** button (top right) copies a permalink that encodes your whole assessment into the URL; a **dark / light theme toggle** is remembered across sessions.
 
-The catalog covers **45 NFRs** across **9 quality categories**, and reacts to **16 context dimensions** (incl. privacy, sustainability/green IT, supply-chain security, safety, data quality, and **AI/ML quality** — explainability, robustness/drift).
+The catalog covers **50 NFRs** across **9 quality categories** (full ISO/IEC 25010:2023 sub-characteristic coverage), and reacts to **16 context dimensions** (incl. privacy, sustainability/green IT, supply-chain security, safety, data quality, and **AI/ML quality** — explainability, robustness/drift).
 
 | Tab | What it does |
 |-----|--------------|

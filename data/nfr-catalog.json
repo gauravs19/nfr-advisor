@@ -1,5 +1,5 @@
 {
-  "version": "2.0",
+  "version": "2.1",
     "observabilityRepo": "https://github.com/gauravs19/cloud-native-observability",
     "regulationDocs": {
       "gdpr": "https://eur-lex.europa.eu/eli/reg/2016/679/oj",
@@ -135,6 +135,64 @@
       }
     },
     "observability": {
+      "reusability": {
+        "method": "4KM",
+        "action": "watch",
+        "sections": [
+          "32"
+        ],
+        "signals": [
+          "change_failure_rate"
+        ]
+      },
+      "analysability": {
+        "method": "GOLD",
+        "action": "ticket",
+        "sections": [
+          "34",
+          "03"
+        ],
+        "signals": [
+          "mttd",
+          "mttr"
+        ]
+      },
+      "installability": {
+        "method": "4KM",
+        "action": "watch",
+        "sections": [
+          "32",
+          "16"
+        ],
+        "signals": [
+          "deploy_frequency",
+          "change_failure_rate"
+        ]
+      },
+      "coexistence": {
+        "method": "USE",
+        "action": "ticket",
+        "sections": [
+          "16",
+          "35"
+        ],
+        "signals": [
+          "saturation",
+          "utilization_efficiency"
+        ]
+      },
+      "ux-consistency": {
+        "method": "BIZ",
+        "action": "watch",
+        "sections": [
+          "01",
+          "29"
+        ],
+        "signals": [
+          "frontend_errors",
+          "feature_adoption"
+        ]
+      },
       "latency": {
         "method": "RED",
         "action": "page",
@@ -817,6 +875,366 @@
       "drives": ["recoverability","availability","fault-tolerance","observability"] }
   ],
   "nfrs": [
+    {
+      "id": "reusability",
+      "name": "Reusability",
+      "category": "maintainability",
+      "iso": "Maintainability > Reusability",
+      "aliases": [
+        "componentization",
+        "shared libraries",
+        "DRY"
+      ],
+      "severity": "low",
+      "businessImpact": "Duplicated logic across teams inflates cost and lets defects diverge; low reuse slows delivery.",
+      "metrics": [
+        "code duplication %",
+        "shared-component adoption",
+        "reuse ratio"
+      ],
+      "qa": {
+        "source": "A second team",
+        "stimulus": "needs a capability an existing module already provides",
+        "artifact": "the shared component / library",
+        "environment": "normal development",
+        "response": "they consume it via a published interface instead of forking or copy-paste",
+        "measure": "Reused through a versioned, published interface; code duplication < 5%"
+      },
+      "tactics": [
+        "Shared libraries / packages",
+        "Well-defined module interfaces",
+        "Internal package registry",
+        "Inner-source ownership"
+      ],
+      "fitnessFunction": "Duplication scanner under threshold; shared components consumed via versioned packages",
+      "baseScore": 0,
+      "conflicts_with": [],
+      "reinforces": [
+        "modularity",
+        "modifiability"
+      ],
+      "rules": [
+        {
+          "when": {
+            "domain": "data-platform"
+          },
+          "weight": 1
+        },
+        {
+          "when": {
+            "domain": "saas-b2b"
+          },
+          "weight": 1
+        },
+        {
+          "when": {
+            "architectureStyle": "microservices"
+          },
+          "weight": 1
+        },
+        {
+          "when": {
+            "lifecycleStage": "mature"
+          },
+          "weight": 1
+        },
+        {
+          "when": {
+            "budget": "lean"
+          },
+          "weight": 1
+        }
+      ]
+    },
+    {
+      "id": "analysability",
+      "name": "Analysability / Diagnosability",
+      "category": "maintainability",
+      "iso": "Maintainability > Analysability",
+      "aliases": [
+        "diagnosability",
+        "debuggability",
+        "root-cause-ability"
+      ],
+      "severity": "medium",
+      "businessImpact": "If engineers can't quickly locate why something failed, incidents drag on and MTTR balloons.",
+      "metrics": [
+        "mean time to diagnose",
+        "log/trace coverage",
+        "% code paths traceable"
+      ],
+      "qa": {
+        "source": "An on-call engineer",
+        "stimulus": "investigates a production defect",
+        "artifact": "logs, traces, and code",
+        "environment": "during an incident",
+        "response": "they isolate the root cause from telemetry without guesswork",
+        "measure": "Root cause located < 30 min from existing logs/traces; > 90% of code paths traceable"
+      },
+      "tactics": [
+        "Structured logging with correlation IDs",
+        "Distributed tracing",
+        "Clear error taxonomy",
+        "Readable stack traces / source maps"
+      ],
+      "fitnessFunction": "Trace/log coverage measured; sample incidents diagnosed within target from telemetry alone",
+      "baseScore": 0,
+      "conflicts_with": [],
+      "reinforces": [
+        "observability",
+        "supportability",
+        "testability"
+      ],
+      "rules": [
+        {
+          "when": {
+            "systemCriticality": "tier-1"
+          },
+          "weight": 2
+        },
+        {
+          "when": {
+            "systemCriticality": "mission-critical"
+          },
+          "weight": 2
+        },
+        {
+          "when": {
+            "architectureStyle": "microservices"
+          },
+          "weight": 2
+        },
+        {
+          "when": {
+            "domain": "fintech-trading"
+          },
+          "weight": 1
+        },
+        {
+          "when": {
+            "lifecycleStage": "legacy-modernization"
+          },
+          "weight": 1
+        }
+      ]
+    },
+    {
+      "id": "installability",
+      "name": "Installability & Replaceability",
+      "category": "portability",
+      "iso": "Flexibility (Portability) > Installability & Replaceability",
+      "aliases": [
+        "install to new env",
+        "swap-ability",
+        "clean uninstall"
+      ],
+      "severity": "low",
+      "businessImpact": "Hard-to-install or hard-to-replace components create lock-in and make new environments or vendor swaps costly.",
+      "metrics": [
+        "time to install in a fresh env",
+        "rollback / uninstall success",
+        "vendor-swap effort"
+      ],
+      "qa": {
+        "source": "A new environment or operator",
+        "stimulus": "installs, upgrades, or replaces the component",
+        "artifact": "the deployable artifact and its config",
+        "environment": "a clean target",
+        "response": "it installs cleanly and is replaceable by a conformant alternative with no code change",
+        "measure": "Installs in a fresh environment < 30 min; replaceable behind a stable interface with zero code change"
+      },
+      "tactics": [
+        "Containerization / OCI images",
+        "Infrastructure as code",
+        "Twelve-factor config",
+        "Standard interfaces / adapters"
+      ],
+      "fitnessFunction": "One-command install in a clean environment passes; component swapped behind its interface in a test",
+      "baseScore": 0,
+      "conflicts_with": [
+        "latency"
+      ],
+      "reinforces": [
+        "portability",
+        "deployability"
+      ],
+      "rules": [
+        {
+          "when": {
+            "deployment": "multi-region"
+          },
+          "weight": 1
+        },
+        {
+          "when": {
+            "architectureStyle": "microservices"
+          },
+          "weight": 1
+        },
+        {
+          "when": {
+            "architectureStyle": "serverless"
+          },
+          "weight": 1
+        },
+        {
+          "when": {
+            "lifecycleStage": "legacy-modernization"
+          },
+          "weight": 2
+        },
+        {
+          "when": {
+            "domain": "data-platform"
+          },
+          "weight": 1
+        }
+      ]
+    },
+    {
+      "id": "coexistence",
+      "name": "Co-existence",
+      "category": "compatibility",
+      "iso": "Compatibility > Co-existence",
+      "aliases": [
+        "resource sharing",
+        "noisy-neighbor safety",
+        "tenant isolation"
+      ],
+      "severity": "low",
+      "businessImpact": "A component that hogs shared resources or interferes with neighbors degrades unrelated systems and erodes trust in shared platforms.",
+      "metrics": [
+        "noisy-neighbor incidents",
+        "resource-limit breaches",
+        "cross-tenant interference"
+      ],
+      "qa": {
+        "source": "A co-located system or tenant",
+        "stimulus": "runs concurrently on shared infrastructure",
+        "artifact": "the component and its resource footprint",
+        "environment": "a shared host / cluster / tenancy",
+        "response": "it stays within its quotas and does not degrade neighbors",
+        "measure": "Honors CPU/memory/IO quotas; zero cross-tenant interference incidents"
+      },
+      "tactics": [
+        "Resource limits / cgroups",
+        "Bulkheads & quotas",
+        "Tenant isolation",
+        "Backpressure"
+      ],
+      "fitnessFunction": "Resource limits enforced; contention load test confirms no neighbor degradation",
+      "baseScore": 0,
+      "conflicts_with": [
+        "cost-efficiency"
+      ],
+      "reinforces": [
+        "fault-tolerance",
+        "scalability"
+      ],
+      "rules": [
+        {
+          "when": {
+            "architectureStyle": "microservices"
+          },
+          "weight": 1
+        },
+        {
+          "when": {
+            "deployment": "multi-region"
+          },
+          "weight": 1
+        },
+        {
+          "when": {
+            "domain": "saas-b2b"
+          },
+          "weight": 1
+        },
+        {
+          "when": {
+            "userType": "b2b-partner"
+          },
+          "weight": 1
+        },
+        {
+          "when": {
+            "domain": "data-platform"
+          },
+          "weight": 1
+        }
+      ]
+    },
+    {
+      "id": "ux-consistency",
+      "name": "UI Consistency & Aesthetics",
+      "category": "usability",
+      "iso": "Interaction Capability > User Interface Aesthetics",
+      "aliases": [
+        "design consistency",
+        "self-descriptiveness",
+        "visual polish"
+      ],
+      "severity": "low",
+      "businessImpact": "Inconsistent, unpolished UI raises cognitive load, hurts brand trust, and increases support load.",
+      "metrics": [
+        "design-system adoption",
+        "UI consistency audit score",
+        "SUS (task satisfaction)"
+      ],
+      "qa": {
+        "source": "A user",
+        "stimulus": "moves across screens and flows",
+        "artifact": "the user interface",
+        "environment": "normal use",
+        "response": "controls, patterns, and styling are consistent and self-explanatory",
+        "measure": "100% of components from the design system; SUS > 75; zero critical consistency defects"
+      },
+      "tactics": [
+        "Design system / component library",
+        "Design tokens",
+        "Pattern library & guidelines",
+        "Visual-regression tests"
+      ],
+      "fitnessFunction": "Visual-regression suite green; design-system adoption measured; SUS above target",
+      "baseScore": 0,
+      "conflicts_with": [],
+      "reinforces": [
+        "learnability",
+        "accessibility"
+      ],
+      "rules": [
+        {
+          "when": {
+            "userType": "b2c-public"
+          },
+          "weight": 2
+        },
+        {
+          "when": {
+            "domain": "ecommerce"
+          },
+          "weight": 1
+        },
+        {
+          "when": {
+            "domain": "media-streaming"
+          },
+          "weight": 1
+        },
+        {
+          "when": {
+            "domain": "saas-b2b"
+          },
+          "weight": 1
+        },
+        {
+          "when": {
+            "lifecycleStage": "growth"
+          },
+          "weight": 1
+        }
+      ]
+    },
     {
       "id": "latency", "name": "Low Latency / Responsiveness", "category": "performance",
       "iso": "Performance Efficiency > Time Behaviour", "aliases": ["responsiveness", "response time"],

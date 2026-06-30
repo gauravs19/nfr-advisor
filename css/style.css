@@ -349,18 +349,20 @@ table.data input[type=text] { padding: 0.3rem 0.45rem; background: var(--panel-2
 
 /* journey progress strip */
 .journey {
-  max-width: 1200px; margin: 0 auto; padding: 0.6rem 1.25rem 0;
-  display: flex; gap: 0.4rem; overflow-x: auto;
+  max-width: 1200px; margin: 0 auto; padding: 0.5rem 1.25rem 0;
+  display: flex; gap: 0.3rem; overflow-x: auto;
 }
 .jstep {
-  display: flex; align-items: center; gap: 0.4rem; white-space: nowrap;
-  padding: 0.3rem 0.6rem; border-radius: 999px; cursor: pointer;
-  background: var(--panel); border: 1px solid var(--line); color: var(--muted); font-size: 0.78rem;
+  flex: 1 1 0; min-width: 0; justify-content: center;
+  display: flex; align-items: center; gap: 0.3rem; white-space: nowrap;
+  padding: 0.25rem 0.4rem; border-radius: 999px; cursor: pointer;
+  background: var(--panel); border: 1px solid var(--line); color: var(--muted); font-size: 0.7rem;
 }
 .jstep:hover { color: var(--ink); border-color: var(--accent); }
 .jstep.active { border-color: var(--accent); color: var(--ink); box-shadow: 0 0 0 1px var(--accent) inset; }
-.jstep .jnum { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; border-radius: 50%; background: var(--panel-2); font-size: 0.6rem; font-weight: 700; }
-.jstep .jicon { font-size: 0.78rem; }
+.jstep .jnum { display: inline-flex; align-items: center; justify-content: center; width: 13px; height: 13px; border-radius: 50%; background: var(--panel-2); font-size: 0.54rem; font-weight: 700; flex: none; }
+.jstep .jicon { font-size: 0.72rem; flex: none; }
+.jstep .jlabel { overflow: hidden; text-overflow: ellipsis; }
 .jstep.done .jicon { color: var(--good); }
 .jstep.partial .jicon { color: var(--warn); }
 .jstep.todo .jicon { color: var(--muted); }

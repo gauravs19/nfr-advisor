@@ -8,15 +8,33 @@ An interactive, structured advisor for **non-functional requirements (NFRs)**. I
 *The full journey: set context once → ranked NFRs (with the signals & alerts that verify them) → compliance → trade-off decisions → scenarios → maturity → readiness score & as-code export.*
 -->
 
-*The full journey: set context once → ranked NFRs (with the signals & alerts that verify them) → compliance → trade-off decisions → scenarios → maturity → readiness score & as-code export.*
+![The trade-off matrix with the decision popover — choose which quality wins, mark it balanced, and record a rationale that flows straight into an ADR](docs/screen-tradeoff.png)
+
+*The full journey, in one app: set context once → ranked NFRs (with the signals & alerts that verify them) → compliance → trade-off decisions → scenarios → maturity → readiness score & as-code export.*
 
 Grounded in **ISO/IEC 25010**, the **arc42 Quality Model (Q42)**, and **ATAM**. A single-page, data-driven app — static, no backend, no build step, deployable to GitHub Pages.
 
 > Most open resources are *catalogs* (arc42 Q42), *standards* (ISO 25010), or *manual methods* (ATAM). None walk an architect from **context → selection → trade-off → measurable criteria → as-code**. That intersection is what this tool fills.
 
+## The idea
+
+You describe a system **once** — its domain, regulatory region, data sensitivity, scale, criticality, and AI usage — and the tool does the rest: it scores which of **50 quality attributes** actually matter (and **why**, down to the exact rule that fired), flags the ones a regulation makes **mandatory**, finds where they **conflict**, turns each into a **testable SLO**, and tells you **what to instrument in production** to prove it. It's for architects, tech leads, and platform teams who want NFRs to be explicit, defensible, and reviewable — not tribal knowledge buried in a wiki.
+
+```mermaid
+flowchart LR
+  C["System context<br/>16 dimensions"] --> R["Ranked NFRs<br/>+ why"]
+  C --> G["Compliance<br/>mandatory NFRs"]
+  R --> T["Trade-offs<br/>→ ADRs"]
+  R --> S["Scenarios<br/>6-part + SLO"]
+  G --> M["Maturity<br/>& gaps"]
+  T --> M
+  S --> M
+  M --> X["Readiness score<br/>+ as-code export"]
+```
+
 ## How to use it
 
-One page, one persistent **System context** rail on the left (15 dimensions — domain, region/jurisdiction, scale, data sensitivity, availability target, criticality, architecture style, users, residency, lifecycle, AI usage…), and seven views as tabs. Set the context once — every tab reacts live. A **Share** button (top right) copies a permalink that encodes your whole assessment into the URL; a **dark / light theme toggle** is remembered across sessions.
+One page, one persistent **System context** rail on the left (16 dimensions — domain, region/jurisdiction, scale, data sensitivity, availability target, criticality, architecture style, users, residency, lifecycle, AI usage…), with the **Essentials** open and the rest one click away. Seven steps run along a **progress strip** that shows each step's state and live counts, and doubles as the navigation. Set the context once — every step reacts live, and a toast tells you *what changed* (e.g. "+3 NFRs · GDPR now applies"). A **Share** button copies a permalink that encodes your whole assessment in the URL; the **light / dark toggle** is remembered.
 
 The catalog covers **50 NFRs** across **9 quality categories** (full ISO/IEC 25010:2023 sub-characteristic coverage), and reacts to **16 context dimensions** (incl. privacy, sustainability/green IT, supply-chain security, safety, data quality, and **AI/ML quality** — explainability, robustness/drift).
 
@@ -28,7 +46,15 @@ The catalog covers **50 NFRs** across **9 quality categories** (full ISO/IEC 250
 | **Trade-offs** | An N×N **trade-off matrix**; click a conflict cell to prioritize one quality over another; resolved conflicts become ADRs. |
 | **Scenarios** | Full **SEI 6-part** quality attribute scenario editor (source / stimulus / artifact / environment / response / measure) with quantified SLOs. |
 | **Maturity & Gaps** | Rate current maturity (0–5) vs target per NFR; gap bars; a prioritized remediation **roadmap** (mandatory + severity + gap weighted); owner assignment. |
-| **Export** | `nfrs.yaml` (SLOs, compliance, maturity), `nfrs.md` (governance spec), and trade-off **ADRs**. Also exports/imports the full assessment **state as JSON** for backup or transfer. |
+| **Export** | The **readiness verdict** (score + grade), then `nfrs.yaml` (SLOs, compliance, maturity), `nfrs.md` (governance spec), and trade-off **ADRs**. Also exports/imports the full assessment **state as JSON** for backup or transfer. |
+
+**Applicable NFRs** — each NFR expands to the rule that fired, the SEI scenario + SLO, tactics, and the production signals that verify it:
+
+![Applicable NFRs grouped by ISO 25010 dimension; an expanded NFR shows business impact, the 6-part scenario with its SLO, why it applies, tactics, fitness function, and the observability signals/alerts that verify it in production](docs/screen-applicable.png)
+
+**Export** — the journey ends on a readiness score and grade, then the downloadable artifacts:
+
+![The Export tab opening with the NFR readiness score gauge and grade plus the maturity / compliance / trade-off component breakdown, above the yaml / markdown / ADR export](docs/screen-export.png)
 
 > An earlier p5.js canvas version is archived at tag `v0.1-canvas` / branch `archive/canvas-microsim`.
 
@@ -38,6 +64,17 @@ The catalog covers **50 NFRs** across **9 quality categories** (full ISO/IEC 250
 - **`js/engine.js`** — relevance scoring, ranking, and conflict/reinforce edge computation. Pure, dependency-free.
 - State persists across screens via `localStorage`.
 - **Observability bridge** — every NFR maps to the signals & alerts that verify it in production, drawn from the companion [cloud-native-observability](https://github.com/gauravs19/cloud-native-observability) catalog (RED/USE/GOLD signal model, page/ticket/watch action, OTel/Prometheus metric names, and the matching alert rule). Expand any NFR in **Applicable NFRs** to see it. This closes the loop: *context → requirement → measurable SLO → the telemetry that proves it.*
+
+```mermaid
+flowchart LR
+  subgraph A["NFR Advisor — what quality you need"]
+    N["Availability NFR<br/>SLO: 99.99%"]
+  end
+  subgraph B["cloud-native-observability — how you prove it"]
+    O["error_rate · slo_compliance<br/>burn-rate alert (page)"]
+  end
+  N -->|"verify in production"| O
+```
 
 ## Run locally
 
@@ -57,6 +94,6 @@ Vanilla JS + semantic HTML tables + CSS. No frameworks, no build step, no extern
 ## Roadmap
 
 - LLM-assisted context intake (free-text system description → context profile)
-- Emit runnable fitness-function stubs (ArchUnit / k6 / axe) from the measures
+- Emit runnable fitness-function stubs (k6 / axe / ArchUnit / OPA + Prometheus alert rules) from each SLO, grounded in the observability mapping ([#17](https://github.com/gauravs19/nfr-advisor/issues/17))
 - Custom catalogs / org-specific NFRs
 - ~~Shareable permalinks (encode state in URL)~~ — ✅ shipped (the **Share** button)

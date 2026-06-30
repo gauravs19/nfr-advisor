@@ -450,9 +450,9 @@
     host.innerHTML = `
       <div class="panel" style="margin-bottom:1rem">
         <h2>Trade-off matrix</h2>
-        <p class="hint">Relevant NFRs (medium+). Red = conflict, green = reinforce. Click a conflict cell to prioritize the <b>row</b> over the <b>column</b>. Each resolved conflict becomes an ADR.</p>
+        <p class="hint">Relevant NFRs (medium+). Red = conflict, green = reinforce. <b>Click any cell</b> to decide which quality wins — or mark them balanced — and record why. Each resolved conflict becomes an ADR.</p>
         <div style="overflow:auto" id="matrixWrap"></div>
-        <div class="legend"><span><span class="dot" style="background:var(--conflict-bg)"></span>conflict</span><span><span class="dot" style="background:var(--win-bg)"></span>resolved (row wins)</span><span><span class="dot" style="background:var(--reinforce-bg)"></span>reinforce</span></div>
+        <div class="legend"><span><span class="dot" style="background:var(--conflict-bg)"></span>conflict</span><span><span class="dot" style="background:var(--win-bg)"></span>resolved</span><span><span class="dot" style="background:var(--med-bg)"></span>balanced</span><span><span class="dot" style="background:var(--reinforce-bg)"></span>reinforce</span></div>
       </div>
       <div class="panel"><h2>Conflicts &amp; decisions</h2><div id="list"></div></div>`;
     const matrixWrap=host.querySelector("#matrixWrap"), listEl=host.querySelector("#list");
@@ -461,25 +461,93 @@
     const keyOf=(a,b)=>[a,b].sort().join("::");
     function rel(a,b){ if((a.conflicts_with||[]).includes(b.id)||(b.conflicts_with||[]).includes(a.id))return"conflict"; if((a.reinforces||[]).includes(b.id)||(b.reinforces||[]).includes(a.id))return"reinforce"; return""; }
     function render() {
-      const rk=ranked().filter(n=>n.tier!=="low"); const pr=NFR.getPriorities();
-      if(rk.length<2){matrixWrap.innerHTML=`<p class="hint">Need at least two relevant NFRs to compare. Adjust the context.</p>`;listEl.innerHTML="";return;}
-      let html=`<table class="matrix" aria-label="NFR trade-off matrix"><caption class="sr-only">Trade-off matrix: each row NFR versus each column NFR. Cells mark conflicts and reinforcements; click a conflict cell to prioritize the row NFR over the column NFR.</caption><thead><tr><th class="rh"></th>`+rk.map((n,i)=>`<th class="ch" scope="col" title="${esc(n.name)}">${i+1}</th>`).join("")+`</tr></thead><tbody>`;
+      const rk=ranked().filter(n=>n.tier!=="low"); const pr=NFR.getPriorities(); const rationales=NFR.getRationales();
+      const byId={}; rk.forEach(n=>byId[n.id]=n);
+      if(rk.length<2){matrixWrap.innerHTML=`<p class="hint">Need at least two relevant NFRs to compare. Adjust the context.</p>`;listEl.innerHTML="";closePop();return;}
+      let html=`<table class="matrix" aria-label="NFR trade-off matrix"><caption class="sr-only">Trade-off matrix: each row NFR versus each column NFR. Click a conflict cell to decide which wins, mark balanced, or record a rationale.</caption><thead><tr><th class="rh"></th>`+rk.map((n,i)=>`<th class="ch" scope="col" title="${esc(n.name)}">${i+1}</th>`).join("")+`</tr></thead><tbody>`;
       rk.forEach((rowN,ri)=>{ html+=`<tr><th class="rh" scope="row" title="${esc(rowN.name)}">${ri+1} · ${esc(rowN.name)}</th>`;
         rk.forEach((colN,ci)=>{ if(ri===ci){html+=`<td class="self">—</td>`;return;}
           const r=rel(rowN,colN);
-          if(r==="conflict"){const w=pr[keyOf(rowN.id,colN.id)];const cls=w?(w===rowN.id?"win":"lose"):"";const mk=w?(w===rowN.id?"✓":"·"):"✕";const lbl=`${esc(rowN.name)} conflicts with ${esc(colN.name)}${w?(w===rowN.id?" — "+esc(rowN.name)+" prioritized":" — "+esc(colN.name)+" prioritized"):" — unresolved"}`;html+=`<td class="conflict ${cls}" data-row="${rowN.id}" data-col="${colN.id}" title="${esc(rowN.name)} ↔ ${esc(colN.name)}" aria-label="${lbl}">${mk}</td>`;}
-          else if(r==="reinforce"){html+=`<td class="reinforce" title="reinforces">+</td>`;} else html+=`<td></td>`; });
+          if(r==="conflict"){const w=pr[keyOf(rowN.id,colN.id)];
+            const cls=!w?"":(w==="balanced"?"balanced":(w===rowN.id?"win":"lose"));
+            const mk=!w?"✕":(w==="balanced"?"=":(w===rowN.id?"✓":"·"));
+            const state=!w?"unresolved":(w==="balanced"?"balanced":(w===rowN.id?esc(rowN.name)+" prioritized":esc(colN.name)+" prioritized"));
+            const lbl=`${esc(rowN.name)} conflicts with ${esc(colN.name)} — ${state}`;
+            html+=`<td class="conflict ${cls}" data-row="${rowN.id}" data-col="${colN.id}" title="${esc(rowN.name)} ↔ ${esc(colN.name)} — click to decide" aria-label="${lbl}">${mk}</td>`;}
+          else if(r==="reinforce"){html+=`<td class="reinforce" data-row="${rowN.id}" data-col="${colN.id}" title="reinforces — click">+</td>`;} else html+=`<td></td>`; });
         html+=`</tr>`; });
       html+=`</tbody></table>`; matrixWrap.innerHTML=html;
-      matrixWrap.querySelectorAll("td.conflict").forEach(td=>td.addEventListener("click",()=>{NFR.setPriority(keyOf(td.dataset.row,td.dataset.col),td.dataset.row);render();refreshJourney();}));
+      matrixWrap.querySelectorAll("td.conflict").forEach(td=>td.addEventListener("click",()=>openTradeoff(byId[td.dataset.row],byId[td.dataset.col],td)));
+      matrixWrap.querySelectorAll("td.reinforce[data-row]").forEach(td=>td.addEventListener("click",()=>openReinforce(byId[td.dataset.row],byId[td.dataset.col],td)));
       const conflicts=NFR.activeConflicts(ranked(),"medium");
       if(!conflicts.length){listEl.innerHTML=`<p class="hint">No active conflicts for this context.</p>`;return;}
       listEl.innerHTML=`<table class="tt"><thead><tr><th>Trade-off</th><th>Tension</th><th>Decision</th></tr></thead><tbody>`+
-        conflicts.map(e=>{const w=pr[e.key];const st=w?`<span class="pill resolved">prioritized: ${esc(w===e.a.id?e.a.name:e.b.name)}</span>`:`<span class="pill conflict">unresolved</span>`;
-          return `<tr><td><b>${esc(e.a.name)}</b> ↔ <b>${esc(e.b.name)}</b><br>${st}</td><td class="hint">${esc(tension(e.a.id,e.b.id))}</td>
+        conflicts.map(e=>{const w=pr[e.key]; const rat=rationales[e.key];
+          const st = w==="balanced" ? `<span class="pill resolved">⚖ balanced</span>` : (w?`<span class="pill resolved">prioritized: ${esc(w===e.a.id?e.a.name:e.b.name)}</span>`:`<span class="pill conflict">unresolved</span>`);
+          return `<tr><td><button class="link-like to-open" data-a="${e.a.id}" data-b="${e.b.id}"><b>${esc(e.a.name)}</b> ↔ <b>${esc(e.b.name)}</b></button><br>${st}${rat?`<div class="hint to-rat-snip">“${esc(rat)}”</div>`:""}</td><td class="hint">${esc(tension(e.a.id,e.b.id))}</td>
             <td><button class="btn ${w===e.a.id?'':'secondary'}" data-key="${e.key}" data-win="${e.a.id}">${esc(e.a.name)}</button>
-            <button class="btn ${w===e.b.id?'':'secondary'}" data-key="${e.key}" data-win="${e.b.id}">${esc(e.b.name)}</button></td></tr>`;}).join("")+`</tbody></table>`;
+            <button class="btn ${w===e.b.id?'':'secondary'}" data-key="${e.key}" data-win="${e.b.id}">${esc(e.b.name)}</button>
+            <button class="btn ${w==='balanced'?'':'secondary'}" data-key="${e.key}" data-win="balanced" title="Accept both — balanced">⚖</button></td></tr>`;}).join("")+`</tbody></table>`;
       listEl.querySelectorAll("button[data-key]").forEach(b=>b.addEventListener("click",()=>{NFR.setPriority(b.dataset.key,b.dataset.win);render();refreshJourney();}));
+      listEl.querySelectorAll(".to-open").forEach(b=>b.addEventListener("click",()=>openTradeoff(byId[b.dataset.a],byId[b.dataset.b],b)));
+    }
+
+    // ---------- decision popover (desktop) / modal (mobile) ----------
+    let popEl=null, backdropEl=null;
+    function closePop(){ if(popEl){popEl.remove();popEl=null;} if(backdropEl){backdropEl.remove();backdropEl=null;} document.removeEventListener("keydown",onEsc); }
+    function onEsc(e){ if(e.key==="Escape") closePop(); }
+    function placePop(anchor){
+      if(popEl.classList.contains("modal")||!anchor) return;
+      const r=anchor.getBoundingClientRect(), pw=popEl.offsetWidth, ph=popEl.offsetHeight;
+      const vw=document.documentElement.clientWidth, vh=document.documentElement.clientHeight;
+      let left=r.right+8; if(left+pw>vw-8) left=r.left-pw-8; if(left<8) left=8;
+      let top=r.top; if(top+ph>vh-8) top=vh-ph-8; if(top<8) top=8;
+      popEl.style.left=left+"px"; popEl.style.top=top+"px";
+    }
+    function makePop(label){
+      closePop();
+      const isMobile=window.matchMedia("(max-width:560px)").matches;
+      if(isMobile){ backdropEl=document.createElement("div"); backdropEl.className="to-backdrop"; backdropEl.addEventListener("click",closePop); host.appendChild(backdropEl); }
+      popEl=document.createElement("div");
+      popEl.className="to-pop"+(isMobile?" modal":"");
+      popEl.setAttribute("role","dialog"); popEl.setAttribute("aria-modal","true"); popEl.setAttribute("aria-label",label);
+      host.appendChild(popEl);
+      document.addEventListener("keydown",onEsc);
+      return popEl;
+    }
+    function openTradeoff(a,b,anchor){
+      if(!a||!b) return;
+      const key=keyOf(a.id,b.id); const w=NFR.getPriorities()[key]; const rat=NFR.getRationales()[key]||"";
+      const slo=n=>esc((n.qa||{}).measure||"—");
+      const choice=n=>`<button class="to-choice ${w===n.id?'sel':''}" data-pick="${n.id}"><span class="to-name">${esc(n.name)}</span><span class="to-slo">${slo(n)}</span></button>`;
+      const p=makePop(`Trade-off: ${a.name} versus ${b.name}`);
+      p.innerHTML=`
+        <div class="to-head"><span><b>${esc(a.name)}</b> ↔ <b>${esc(b.name)}</b></span><button class="to-x" aria-label="Close">✕</button></div>
+        <div class="hint to-tension">${esc(tension(a.id,b.id))}</div>
+        <div class="to-q">Which wins where they conflict?</div>
+        <div class="to-choices">${choice(a)}${choice(b)}</div>
+        <button class="to-balanced ${w==='balanced'?'sel':''}" data-pick="balanced">⚖ Balanced — accept both, no single winner</button>
+        <label class="to-rat-l">Rationale <span class="hint">(optional — flows into the ADR)</span></label>
+        <textarea class="to-rat" rows="2" placeholder="Why this decision?">${esc(rat)}</textarea>
+        <div class="to-foot"><button class="btn secondary to-clear">Clear</button><span class="hint to-adr"></span></div>`;
+      placePop(anchor);
+      const adr=p.querySelector(".to-adr"); const updAdr=()=>{ adr.textContent=NFR.getPriorities()[key]?"✓ recorded — becomes an ADR":"unresolved"; };
+      updAdr();
+      const refreshSel=v=>p.querySelectorAll("[data-pick]").forEach(x=>x.classList.toggle("sel",x.dataset.pick===v));
+      p.querySelectorAll("[data-pick]").forEach(btn=>btn.addEventListener("click",()=>{ NFR.setPriority(key,btn.dataset.pick); refreshSel(btn.dataset.pick); render(); refreshJourney(); updAdr(); }));
+      const ta=p.querySelector(".to-rat"); ta.addEventListener("change",()=>{ NFR.setRationale(key,ta.value.trim()); render(); });
+      p.querySelector(".to-clear").addEventListener("click",()=>{ NFR.setPriority(key,null); refreshSel(null); render(); refreshJourney(); updAdr(); });
+      p.querySelector(".to-x").addEventListener("click",closePop);
+      const f=p.querySelector(".to-choice"); if(f) f.focus();
+    }
+    function openReinforce(a,b,anchor){
+      if(!a||!b) return;
+      const p=makePop(`Reinforce: ${a.name} and ${b.name}`);
+      p.innerHTML=`<div class="to-head"><span><b>${esc(a.name)}</b> ＋ <b>${esc(b.name)}</b></span><button class="to-x" aria-label="Close">✕</button></div>
+        <div class="hint">These qualities <b>reinforce</b> each other — investing in one tends to help the other, so there's no trade-off to resolve. Pursue their tactics together.</div>`;
+      placePop(anchor);
+      p.querySelector(".to-x").addEventListener("click",closePop);
+      p.querySelector(".to-x").focus();
     }
     render(); return { onContext: render };
   }
@@ -557,22 +625,29 @@
       <pre class="export" id="out"></pre>`;
     const out=host.querySelector("#out"); let tab="yaml";
     const yEsc=s=>/[:#{}\[\],&*?|<>=!%@`"']/.test(String(s))?JSON.stringify(s):s;
-    function gather(){const ctx=NFR.getContext();const all=ranked();const rk=all.filter(n=>n.tier!=="low");const scenarios=NFR.getScenarios();const priorities=NFR.getPriorities();const mat=NFR.getMaturity();const owners=NFR.getOwners();const conflicts=NFR.activeConflicts(all,"medium");const regs=NFR.applicableRegulations(catalog,ctx);rk.forEach(n=>{n.scenario=scenarios[n.id]||n.qa;n.cur=(typeof mat[n.id]==="number")?mat[n.id]:0;n.tgt=NFR.targetMaturity(n.tier);n.gap=Math.max(0,n.tgt-n.cur);n.owner=owners[n.id]||"";});return {ctx,rk,conflicts,priorities,regs};}
-    function toYaml(){const {ctx,rk,conflicts,priorities,regs}=gather();let y="# Generated by NFR Advisor — ISO/IEC 25010, arc42 Q42, ATAM/SEI scenarios\ncontext:\n";Object.keys(ctx).forEach(k=>y+=`  ${k}: ${yEsc(String(ctx[k]))}\n`);
+    function gather(){const ctx=NFR.getContext();const all=ranked();const rk=all.filter(n=>n.tier!=="low");const scenarios=NFR.getScenarios();const priorities=NFR.getPriorities();const mat=NFR.getMaturity();const owners=NFR.getOwners();const conflicts=NFR.activeConflicts(all,"medium");const regs=NFR.applicableRegulations(catalog,ctx);const rationales=NFR.getRationales();rk.forEach(n=>{n.scenario=scenarios[n.id]||n.qa;n.cur=(typeof mat[n.id]==="number")?mat[n.id]:0;n.tgt=NFR.targetMaturity(n.tier);n.gap=Math.max(0,n.tgt-n.cur);n.owner=owners[n.id]||"";});return {ctx,rk,conflicts,priorities,rationales,regs};}
+    function toYaml(){const {ctx,rk,conflicts,priorities,rationales,regs}=gather();let y="# Generated by NFR Advisor — ISO/IEC 25010, arc42 Q42, ATAM/SEI scenarios\ncontext:\n";Object.keys(ctx).forEach(k=>y+=`  ${k}: ${yEsc(String(ctx[k]))}\n`);
       y+="compliance:\n";if(!regs.length)y+="  []\n";regs.forEach(r=>{y+=`  - id: ${r.id}\n    name: ${yEsc(r.name)}\n    control: ${yEsc(r.control)}\n    mandates: [${(r.drives||[]).join(", ")}]\n`;});
       y+="nfrs:\n";rk.forEach(n=>{const q=n.scenario||{};y+=`  - id: ${n.id}\n    name: ${yEsc(n.name)}\n    category: ${n.category}\n    iso: ${yEsc(n.iso)}\n    importance: ${n.tier}\n    severity: ${n.severity}\n    mandatory: ${!!n.mandatory}\n    regulations: [${(n.regs||[]).join(", ")}]\n`;
         y+=`    scenario:\n      source: ${yEsc(q.source||"")}\n      stimulus: ${yEsc(q.stimulus||"")}\n      artifact: ${yEsc(q.artifact||"")}\n      environment: ${yEsc(q.environment||"")}\n      response: ${yEsc(q.response||"")}\n      measure: ${yEsc(q.measure||"")}\n`;
         y+=`    maturity: { current: ${n.cur}, target: ${n.tgt}, gap: ${n.gap} }\n`;if(n.owner)y+=`    owner: ${yEsc(n.owner)}\n`;y+=`    fitness_function: ${yEsc(n.fitnessFunction)}\n    tactics:\n`;(n.tactics||[]).forEach(t=>y+=`      - ${yEsc(t)}\n`);});
-      y+="tradeoffs:\n";if(!conflicts.length)y+="  []\n";conflicts.forEach(e=>{const w=priorities[e.key];y+=`  - between: [${e.a.id}, ${e.b.id}]\n    resolution: ${w?("prioritize "+w):"UNRESOLVED"}\n`;});return y;}
-    function toMd(){const {ctx,rk,conflicts,priorities,regs}=gather();let m="# Non-Functional Requirements\n\n_Generated by NFR Advisor — ISO/IEC 25010, arc42 Q42, ATAM/SEI._\n\n## System context\n\n| Dimension | Value |\n|---|---|\n";Object.keys(ctx).forEach(k=>m+=`| ${k} | ${ctx[k]} |\n`);
+      y+="tradeoffs:\n";if(!conflicts.length)y+="  []\n";conflicts.forEach(e=>{const w=priorities[e.key];const res=!w?"UNRESOLVED":(w==="balanced"?"balanced":("prioritize "+w));y+=`  - between: [${e.a.id}, ${e.b.id}]\n    resolution: ${res}\n`;if(rationales[e.key])y+=`    rationale: ${yEsc(rationales[e.key])}\n`;});return y;}
+    function toMd(){const {ctx,rk,conflicts,priorities,rationales,regs}=gather();let m="# Non-Functional Requirements\n\n_Generated by NFR Advisor — ISO/IEC 25010, arc42 Q42, ATAM/SEI._\n\n## System context\n\n| Dimension | Value |\n|---|---|\n";Object.keys(ctx).forEach(k=>m+=`| ${k} | ${ctx[k]} |\n`);
       m+="\n## Compliance obligations\n\n";if(!regs.length)m+="_No regulations triggered by this context._\n";regs.forEach(r=>{m+=`- **${r.name}** (${r.full}) — ${r.control}\n  - Mandates: ${(r.drives||[]).join(", ")}\n`;});
       m+="\n## Quality requirements (by importance)\n\n";["high","medium"].forEach(tier=>{const g=rk.filter(n=>n.tier===tier);if(!g.length)return;m+=`### ${tier==="high"?"High importance":"Medium importance"}\n\n`;
         g.forEach(n=>{const q=n.scenario||{};m+=`#### ${n.name}${n.mandatory?" — MANDATORY":""} _(severity: ${n.severity})_\n- **ISO 25010:** ${n.iso}\n`;if(n.businessImpact)m+=`- **Business impact:** ${n.businessImpact}\n`;if(n.regs&&n.regs.length)m+=`- **Compliance:** ${n.regs.join(", ")}\n`;
           m+=`- **Scenario:** [${q.source}] ${q.stimulus} → ${q.response}\n- **Measure (SLO):** ${q.measure}\n- **Maturity:** current ${n.cur}/5, target ${n.tgt}/5, gap ${n.gap}${n.owner?` (owner: ${n.owner})`:""}\n- **Tactics:** ${(n.tactics||[]).join("; ")}\n- **Verify:** ${n.fitnessFunction}\n\n`;});});
-      m+="## Trade-offs\n\n";if(!conflicts.length)m+="_No active conflicts._\n";conflicts.forEach(e=>{const w=priorities[e.key];m+=`- **${e.a.name} ↔ ${e.b.name}** — ${w?("prioritize **"+(w===e.a.id?e.a.name:e.b.name)+"**"):"_unresolved_"}\n`;});return m;}
-    function toAdr(){const {ctx,conflicts,priorities}=gather();if(!conflicts.length)return"# No trade-off ADRs\n\nNo conflicts among the selected NFRs for this context.\n";
-      return conflicts.map((e,i)=>{const w=priorities[e.key],num=String(i+1).padStart(4,"0");const winner=w?(w===e.a.id?e.a:e.b):null,loser=w?(w===e.a.id?e.b:e.a):null;
-        return `# ADR-${num}: Trade-off between ${e.a.name} and ${e.b.name}\n\n## Status\n${w?"Accepted":"Proposed (UNRESOLVED)"}\n\n## Context\nFor a ${ctx.domain} system (${ctx.region}) at ${ctx.userScale} scale, criticality ${ctx.systemCriticality}, **${e.a.name}** and **${e.b.name}** are both relevant but conflict.\n\n## Decision\n${w?`Prioritize **${winner.name}** over **${loser.name}** where they conflict.`:"_Not yet decided._"}\n\n## Consequences\n${w?`- Favour tactics for ${winner.name}: ${(winner.tactics||[]).slice(0,3).join("; ")}.\n- Accept reduced ${loser.name}; mitigate via: ${(loser.tactics||[]).slice(0,2).join("; ")}.\n- Watch: ${(winner.qa||{}).measure}.`:"- Pending decision."}\n`;}).join("\n---\n\n");}
+      m+="## Trade-offs\n\n";if(!conflicts.length)m+="_No active conflicts._\n";conflicts.forEach(e=>{const w=priorities[e.key];const dec=!w?"_unresolved_":(w==="balanced"?"**balanced** (accept both)":("prioritize **"+(w===e.a.id?e.a.name:e.b.name)+"**"));m+=`- **${e.a.name} ↔ ${e.b.name}** — ${dec}${rationales[e.key]?` — _${rationales[e.key]}_`:""}\n`;});return m;}
+    function toAdr(){const {ctx,conflicts,priorities,rationales}=gather();if(!conflicts.length)return"# No trade-off ADRs\n\nNo conflicts among the selected NFRs for this context.\n";
+      return conflicts.map((e,i)=>{const w=priorities[e.key],num=String(i+1).padStart(4,"0");const balanced=w==="balanced";
+        const winner=(w&&!balanced)?(w===e.a.id?e.a:e.b):null,loser=(w&&!balanced)?(w===e.a.id?e.b:e.a):null;
+        const status=balanced?"Accepted":(w?"Accepted":"Proposed (UNRESOLVED)");
+        const decision=balanced?`Treat **${e.a.name}** and **${e.b.name}** as **balanced** — neither is sacrificed; tune both to their SLOs.`
+          :(w?`Prioritize **${winner.name}** over **${loser.name}** where they conflict.`:"_Not yet decided._");
+        const consequences=balanced?`- Pursue tactics for both: ${(e.a.tactics||[]).slice(0,2).join("; ")}; ${(e.b.tactics||[]).slice(0,2).join("; ")}.\n- Watch both measures: ${(e.a.qa||{}).measure}; ${(e.b.qa||{}).measure}.`
+          :(w?`- Favour tactics for ${winner.name}: ${(winner.tactics||[]).slice(0,3).join("; ")}.\n- Accept reduced ${loser.name}; mitigate via: ${(loser.tactics||[]).slice(0,2).join("; ")}.\n- Watch: ${(winner.qa||{}).measure}.`:"- Pending decision.");
+        const rat=rationales[e.key]?`\n\n## Rationale\n${rationales[e.key]}`:"";
+        return `# ADR-${num}: Trade-off between ${e.a.name} and ${e.b.name}\n\n## Status\n${status}\n\n## Context\nFor a ${ctx.domain} system (${ctx.region}) at ${ctx.userScale} scale, criticality ${ctx.systemCriticality}, **${e.a.name}** and **${e.b.name}** are both relevant but conflict.\n\n## Decision\n${decision}${rat}\n\n## Consequences\n${consequences}\n`;}).join("\n---\n\n");}
     const content=()=>tab==="yaml"?toYaml():tab==="md"?toMd():toAdr();
     const filename=()=>tab==="yaml"?"nfrs.yaml":tab==="md"?"nfrs.md":"adr-tradeoffs.md";
     const render=()=>out.textContent=content();

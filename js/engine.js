@@ -44,13 +44,18 @@
   // full reset: context AND every assessment map, so no stale data lingers
   // for NFRs that are no longer in scope.
   function resetAll() {
-    const fresh = { context: Object.assign({}, DEFAULT_CONTEXT), priorities: {}, scenarios: {}, maturity: {}, owners: {} };
+    const fresh = { context: Object.assign({}, DEFAULT_CONTEXT), priorities: {}, scenarios: {}, maturity: {}, owners: {}, rationales: {} };
     saveState(fresh);
     return fresh.context;
   }
 
   function getPriorities() { return loadState().priorities || {}; }
-  function setPriority(edgeKey, winnerId) { const s = loadState(); s.priorities = s.priorities || {}; s.priorities[edgeKey] = winnerId; saveState(s); }
+  // winnerId = an NFR id, the sentinel "balanced", or a falsy value to clear the decision
+  function setPriority(edgeKey, winnerId) { const s = loadState(); s.priorities = s.priorities || {}; if (winnerId) s.priorities[edgeKey] = winnerId; else delete s.priorities[edgeKey]; saveState(s); }
+
+  // free-text rationale per trade-off decision (flows into the exported ADRs)
+  function getRationales() { return loadState().rationales || {}; }
+  function setRationale(edgeKey, text) { const s = loadState(); s.rationales = s.rationales || {}; if (text) s.rationales[edgeKey] = text; else delete s.rationales[edgeKey]; saveState(s); }
 
   function getScenarios() { return loadState().scenarios || {}; }
   function setScenario(nfrId, scenario) { const s = loadState(); s.scenarios = s.scenarios || {}; s.scenarios[nfrId] = scenario; saveState(s); }
@@ -78,7 +83,8 @@
       priorities: obj.priorities || {},
       scenarios: obj.scenarios || {},
       maturity: obj.maturity || {},
-      owners: obj.owners || {}
+      owners: obj.owners || {},
+      rationales: obj.rationales || {}
     });
     return true;
   }
@@ -251,7 +257,7 @@
     loadState, saveState,
     getContext, setContext, patchContext, resetAll,
     encodeState, decodeState, importState,
-    getPriorities, setPriority,
+    getPriorities, setPriority, getRationales, setRationale,
     getScenarios, setScenario,
     getMaturity, setMaturity, getOwners, setOwner,
     loadCatalog, categoryColor, categoryLabel,

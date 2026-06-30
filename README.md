@@ -16,6 +16,20 @@ Grounded in **ISO/IEC 25010**, the **arc42 Quality Model (Q42)**, and **ATAM**. 
 
 > Most open resources are *catalogs* (arc42 Q42), *standards* (ISO 25010), or *manual methods* (ATAM). None walk an architect from **context → selection → trade-off → measurable criteria → as-code**. That intersection is what this tool fills.
 
+## What's a non-functional requirement?
+
+A **functional requirement** says *what* a system does — "users can transfer money." A **non-functional requirement (NFR)** says *how well* it must do it — the qualities and constraints around that behaviour: how fast, how available, how secure, how recoverable, how cheap to run, how accessible, how auditable. They're also called **quality attributes**.
+
+| | Functional | Non-functional (NFR) |
+|---|---|---|
+| The question | *What* does it do? | *How well*, under what constraints? |
+| Example | "Process a card payment" | p99 < 300 ms · 99.99% uptime · PCI-DSS · RPO < 5 min |
+| Where it lives | Backlog / user stories | Architecture, SLOs, runbooks — often nowhere |
+
+**Why they matter.** Systems rarely fail because a feature is missing — they fail because an NFR wasn't met. Outages, breaches, runaway cloud bills, latency that drives users away, a compliance fine, a biased model: each is a *non-functional* failure. NFRs also shape the **architecture** far more than features do, and they're expensive to retrofit — you can't bolt on availability, security, or scalability at the end.
+
+**Why they're hard.** NFRs are usually written as vague adjectives — "fast", "secure", "scalable" — with no number, no owner, and no test, so nobody can tell whether they're actually met. They're cross-cutting, deeply **context-dependent** (a fintech and an internal tool need wildly different things), and the first thing dropped under deadline pressure. The fix is to make each one **context-specific, measurable, traceable to *why*, and verifiable in production** — which is exactly what this tool does.
+
 ## The idea
 
 You describe a system **once** — its domain, regulatory region, data sensitivity, scale, criticality, and AI usage — and the tool does the rest: it scores which of **50 quality attributes** actually matter (and **why**, down to the exact rule that fired), flags the ones a regulation makes **mandatory**, finds where they **conflict**, turns each into a **testable SLO**, and tells you **what to instrument in production** to prove it. It's for architects, tech leads, and platform teams who want NFRs to be explicit, defensible, and reviewable — not tribal knowledge buried in a wiki.

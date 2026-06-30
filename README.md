@@ -1,5 +1,7 @@
 # NFR Advisor
 
+[![Live demo](https://img.shields.io/badge/demo-live-brightgreen)](https://gauravs19.github.io/nfr-advisor/) [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](./LICENSE) ![Static · no build · no deps](https://img.shields.io/badge/static-no%20build%20%C2%B7%20no%20deps-informational) [![Stars](https://img.shields.io/github/stars/gauravs19/nfr-advisor?style=social)](https://github.com/gauravs19/nfr-advisor/stargazers)
+
 An interactive, structured advisor for **non-functional requirements (NFRs)**. It takes a system's **context** → ranks the **applicable quality attributes** → surfaces **trade-offs** → turns them into **measurable scenarios** → and exports an **as-code NFR spec + ADRs**.
 
 <!-- walkthrough GIF hidden for now (asset kept at docs/journey.gif)
@@ -117,3 +119,9 @@ Vanilla JS + semantic HTML tables + CSS. No frameworks, no build step, no extern
 - Emit runnable fitness-function stubs (k6 / axe / ArchUnit / OPA + Prometheus alert rules) from each SLO, grounded in the observability mapping ([#17](https://github.com/gauravs19/nfr-advisor/issues/17))
 - Custom catalogs / org-specific NFRs
 - ~~Shareable permalinks (encode state in URL)~~ — ✅ shipped (the **Share** button)
+
+## Related
+
+- **[cloud-native-observability](https://github.com/gauravs19/cloud-native-observability)** — the companion catalog of metrics & alerts that every NFR maps to (the *what to observe* half of the loop).
+
+If you find this useful, a ⭐ helps others discover it. Issues and PRs are welcome — try the [live demo](https://gauravs19.github.io/nfr-advisor/) first.

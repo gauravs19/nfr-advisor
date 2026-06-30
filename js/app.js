@@ -465,10 +465,9 @@
     host.innerHTML = `
       <div class="panel" style="margin-bottom:1rem">
         <h2>Trade-off matrix</h2>
-        <p class="hint">Red = conflict, green = reinforce. <b>Click any cell</b> between two relevant NFRs to decide which wins — or mark them balanced — and record why; each resolved conflict becomes an ADR. <b>Low-relevance</b> NFRs are shown greyed for context (not decidable).</p>
-        <label class="row" style="gap:.4rem;font-size:.85rem;color:var(--muted);margin-bottom:.5rem"><input type="checkbox" id="showLow" checked> Show low-relevance NFRs</label>
+        <p class="hint">Relevant NFRs (medium+). Red = conflict, green = reinforce. <b>Click any cell</b> to decide which quality wins — or mark them balanced — and record why. Each resolved conflict becomes an ADR.</p>
         <div style="overflow:auto" id="matrixWrap"></div>
-        <div class="legend"><span><span class="dot" style="background:var(--conflict-bg)"></span>conflict</span><span><span class="dot" style="background:var(--win-bg)"></span>resolved</span><span><span class="dot" style="background:var(--med-bg)"></span>balanced</span><span><span class="dot" style="background:var(--reinforce-bg)"></span>reinforce</span><span style="opacity:.5"><span class="dot" style="background:var(--line)"></span>low relevance</span></span></div>
+        <div class="legend"><span><span class="dot" style="background:var(--conflict-bg)"></span>conflict</span><span><span class="dot" style="background:var(--win-bg)"></span>resolved</span><span><span class="dot" style="background:var(--med-bg)"></span>balanced</span><span><span class="dot" style="background:var(--reinforce-bg)"></span>reinforce</span></div>
       </div>
       <div class="panel"><h2>Conflicts &amp; decisions</h2><div id="list"></div></div>`;
     const matrixWrap=host.querySelector("#matrixWrap"), listEl=host.querySelector("#list");
@@ -477,29 +476,24 @@
     const keyOf=(a,b)=>[a,b].sort().join("::");
     function rel(a,b){ if((a.conflicts_with||[]).includes(b.id)||(b.conflicts_with||[]).includes(a.id))return"conflict"; if((a.reinforces||[]).includes(b.id)||(b.reinforces||[]).includes(a.id))return"reinforce"; return""; }
     function render() {
-      const showLow = host.querySelector("#showLow").checked;
-      const full=ranked(); const pr=NFR.getPriorities(); const rationales=NFR.getRationales();
-      const rk = showLow ? full : full.filter(n=>n.tier!=="low");
+      const rk=ranked().filter(n=>n.tier!=="low"); const pr=NFR.getPriorities(); const rationales=NFR.getRationales();
       const byId={}; rk.forEach(n=>byId[n.id]=n);
-      const lo = n => n.tier==="low";
-      if(rk.length<2){matrixWrap.innerHTML=`<p class="hint">Need at least two NFRs to compare. Adjust the context.</p>`;listEl.innerHTML="";closePop();return;}
-      let html=`<table class="matrix" aria-label="NFR trade-off matrix"><caption class="sr-only">Trade-off matrix: each row NFR versus each column NFR. Click a conflict cell between two relevant NFRs to decide which wins, mark balanced, or record a rationale. Low-relevance NFRs are shown greyed.</caption><thead><tr><th class="rh"></th>`+rk.map((n,i)=>`<th class="ch ${lo(n)?'lo':''}" scope="col" title="${esc(n.name)}${lo(n)?' (low relevance)':''}">${i+1}</th>`).join("")+`</tr></thead><tbody>`;
-      rk.forEach((rowN,ri)=>{ html+=`<tr><th class="rh ${lo(rowN)?'lo':''}" scope="row" title="${esc(rowN.name)}${lo(rowN)?' (low relevance)':''}">${ri+1} · ${esc(rowN.name)}</th>`;
+      if(rk.length<2){matrixWrap.innerHTML=`<p class="hint">Need at least two relevant NFRs to compare. Adjust the context.</p>`;listEl.innerHTML="";closePop();return;}
+      let html=`<table class="matrix" aria-label="NFR trade-off matrix"><caption class="sr-only">Trade-off matrix: each row NFR versus each column NFR. Click a conflict cell to decide which wins, mark balanced, or record a rationale.</caption><thead><tr><th class="rh"></th>`+rk.map((n,i)=>`<th class="ch" scope="col" title="${esc(n.name)}">${i+1}</th>`).join("")+`</tr></thead><tbody>`;
+      rk.forEach((rowN,ri)=>{ html+=`<tr><th class="rh" scope="row" title="${esc(rowN.name)}">${ri+1} · ${esc(rowN.name)}</th>`;
         rk.forEach((colN,ci)=>{ if(ri===ci){html+=`<td class="self">—</td>`;return;}
-          const r=rel(rowN,colN); const dim = lo(rowN)||lo(colN);
-          if(r==="conflict"){
-            if(dim){ html+=`<td class="conflict lo" title="${esc(rowN.name)} ↔ ${esc(colN.name)} — low relevance">✕</td>`; }
-            else { const w=pr[keyOf(rowN.id,colN.id)];
-              const cls=!w?"":(w==="balanced"?"balanced":(w===rowN.id?"win":"lose"));
-              const mk=!w?"✕":(w==="balanced"?"=":(w===rowN.id?"✓":"·"));
-              const state=!w?"unresolved":(w==="balanced"?"balanced":(w===rowN.id?esc(rowN.name)+" prioritized":esc(colN.name)+" prioritized"));
-              const lbl=`${esc(rowN.name)} conflicts with ${esc(colN.name)} — ${state}`;
-              html+=`<td class="conflict ${cls}" data-row="${rowN.id}" data-col="${colN.id}" title="${esc(rowN.name)} ↔ ${esc(colN.name)} — click to decide" aria-label="${lbl}">${mk}</td>`; } }
-          else if(r==="reinforce"){html+=`<td class="reinforce${dim?' lo':''}"${dim?'':` data-row="${rowN.id}" data-col="${colN.id}"`} title="reinforces${dim?' (low relevance)':' — click'}">+</td>`;} else html+=`<td></td>`; });
+          const r=rel(rowN,colN);
+          if(r==="conflict"){const w=pr[keyOf(rowN.id,colN.id)];
+            const cls=!w?"":(w==="balanced"?"balanced":(w===rowN.id?"win":"lose"));
+            const mk=!w?"✕":(w==="balanced"?"=":(w===rowN.id?"✓":"·"));
+            const state=!w?"unresolved":(w==="balanced"?"balanced":(w===rowN.id?esc(rowN.name)+" prioritized":esc(colN.name)+" prioritized"));
+            const lbl=`${esc(rowN.name)} conflicts with ${esc(colN.name)} — ${state}`;
+            html+=`<td class="conflict ${cls}" data-row="${rowN.id}" data-col="${colN.id}" title="${esc(rowN.name)} ↔ ${esc(colN.name)} — click to decide" aria-label="${lbl}">${mk}</td>`;}
+          else if(r==="reinforce"){html+=`<td class="reinforce" data-row="${rowN.id}" data-col="${colN.id}" title="reinforces — click">+</td>`;} else html+=`<td></td>`; });
         html+=`</tr>`; });
       html+=`</tbody></table>`; matrixWrap.innerHTML=html;
-      matrixWrap.querySelectorAll("td.conflict:not(.lo)").forEach(td=>td.addEventListener("click",()=>openTradeoff(byId[td.dataset.row],byId[td.dataset.col],td)));
-      matrixWrap.querySelectorAll("td.reinforce:not(.lo)[data-row]").forEach(td=>td.addEventListener("click",()=>openReinforce(byId[td.dataset.row],byId[td.dataset.col],td)));
+      matrixWrap.querySelectorAll("td.conflict").forEach(td=>td.addEventListener("click",()=>openTradeoff(byId[td.dataset.row],byId[td.dataset.col],td)));
+      matrixWrap.querySelectorAll("td.reinforce[data-row]").forEach(td=>td.addEventListener("click",()=>openReinforce(byId[td.dataset.row],byId[td.dataset.col],td)));
       const conflicts=NFR.activeConflicts(ranked(),"medium");
       if(!conflicts.length){listEl.innerHTML=`<p class="hint">No active conflicts for this context.</p>`;return;}
       listEl.innerHTML=`<table class="tt"><thead><tr><th>Trade-off</th><th>Tension</th><th>Decision</th></tr></thead><tbody>`+
@@ -579,7 +573,6 @@
       p.querySelector(".to-x").addEventListener("click",closePop);
       p.querySelector(".to-x").focus();
     }
-    host.querySelector("#showLow").addEventListener("change", render);
     render(); return { onContext: render };
   }
 

@@ -14,9 +14,9 @@ An interactive, structured advisor for **non-functional requirements (NFRs)**. I
 
 Grounded in three open, widely-used standards so the output is defensible, not opinion:
 
-- **ISO/IEC 25010** — the international **software product-quality** standard. Its quality characteristics (performance, reliability, security, maintainability, usability, …) are the categories the NFRs are organised under.
-- **arc42 Quality Model (Q42)** — a practical, **scenario-based** catalogue of quality requirements from the popular arc42 architecture-documentation template.
-- **ATAM / SEI scenarios** — the **Architecture Tradeoff Analysis Method**, plus the **SEI 6-part scenario** (source · stimulus · artifact · environment · response · measure) — a precise, testable way to state a quality requirement.
+- **[ISO/IEC 25010](https://iso25000.com/index.php/en/iso-25000-standards/iso-25010)** — the international **software product-quality** standard. Its quality characteristics (performance, reliability, security, maintainability, usability, …) are the categories the NFRs are organised under.
+- **[arc42 Quality Model (Q42)](https://quality.arc42.org/)** — a practical, **scenario-based** catalogue of quality requirements from the popular arc42 architecture-documentation template.
+- **[ATAM](https://en.wikipedia.org/wiki/Architecture_tradeoff_analysis_method) / SEI scenarios** — the **Architecture Tradeoff Analysis Method**, plus the **SEI 6-part scenario** (source · stimulus · artifact · environment · response · measure) — a precise, testable way to state a quality requirement.
 
 A single-page, data-driven app — static, no backend, no build step, deployable to GitHub Pages.
 

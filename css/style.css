@@ -161,6 +161,12 @@ table.tt th { color: var(--muted); font-weight: 600; }
 .pill { font-size: 0.7rem; padding: 0.1rem 0.5rem; border-radius: 999px; }
 .pill.conflict { background: var(--conflict-bg); color: var(--conflict-ink); }
 .pill.resolved { background: var(--high-bg); color: var(--high-ink); }
+.pill.off { background: var(--low-bg); color: var(--low-ink); }
+
+/* out-of-scope (disabled) regulation cards */
+.nfr-card.reg-off { opacity: 0.55; }
+.nfr-card.reg-off:hover { opacity: 0.85; }
+.reg-doc { font-size: 0.78rem; white-space: nowrap; }
 
 /* toolbar above tables */
 .toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.8rem; }

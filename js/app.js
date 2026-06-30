@@ -416,28 +416,47 @@
     host.innerHTML = `
       <div class="panel">
         <h2>Compliance &amp; regulatory mapping</h2>
-        <p class="hint">Regulations triggered by the current <b>region</b>, <b>data sensitivity</b>, and <b>domain</b>. Each maps to the NFRs it makes <span class="mand">MANDATORY</span>, with the controlling reference.</p>
+        <p class="hint">All regulations in the catalog, grouped by area. Those <b>triggered by your context</b> (region · data sensitivity · domain · AI usage · sector) are <b>in scope</b> and map to the NFRs they make <span class="mand">MANDATORY</span>; the rest are shown <b>disabled</b>, with what would trigger them.</p>
+        <label class="row" style="gap:.4rem;font-size:.85rem;color:var(--muted);margin-bottom:.4rem"><input type="checkbox" id="showOff" checked> Show out-of-scope regulations</label>
         <div id="regs"></div>
       </div>`;
     const regsEl=host.querySelector("#regs");
+    const DIMLBL={}; catalog.contextDimensions.forEach(d=>DIMLBL[d.id]=d.label);
+    const triggerText=r=>(r.appliesWhen||[]).map(cond=>Object.entries(cond).map(([k,v])=>`${esc(DIMLBL[k]||k)} = <b>${esc(v)}</b>`).join(" &amp; ")).join("  &nbsp;<i>or</i>&nbsp;  ");
+    const docLink=r=>{ const u=(catalog.regulationDocs||{})[r.id]; return u?` &nbsp;<a class="reg-doc" href="${esc(u)}" target="_blank" rel="noopener" title="Official reference for ${esc(r.name)}">official reference ↗</a>`:""; };
+    const AREAS=[["privacy","Privacy & Data Protection"],["financial","Financial Services"],["healthcare","Healthcare & Life Sciences"],["security","Security & Assurance"],["ai","AI / ML Governance"],["accessibility","Accessibility"],["resilience","Operational Resilience"],["government","Government / Public Sector"]];
     function render() {
-      const ctx=NFR.getContext(); const regs=NFR.applicableRegulations(catalog, ctx); const all=ranked(); const byId={}; all.forEach(n=>byId[n.id]=n);
-      if(!regs.length){ regsEl.innerHTML=`<p class="hint">No regulations triggered by this context. For example: set <b>Region = eu</b> and <b>Data Sensitivity = pii</b> for GDPR, <b>Data Sensitivity = pci</b> for PCI-DSS, <b>AI Usage = genai</b> in the EU for the AI Act, or <b>Public Sector = yes</b> in the US for FedRAMP.</p>`; return; }
-      const AREAS=[["privacy","Privacy & Data Protection"],["financial","Financial Services"],["healthcare","Healthcare & Life Sciences"],["security","Security & Assurance"],["ai","AI / ML Governance"],["accessibility","Accessibility"],["resilience","Operational Resilience"],["government","Government / Public Sector"]];
-      const card=r=>`
-        <div class="nfr-card" style="border-left-color:var(--bad);margin-bottom:.6rem">
-          <div class="row"><div class="name">${esc(r.name)} — <span class="hint">${esc(r.full)}</span></div></div>
-          <div class="kv" style="margin:.3rem 0"><b>Control reference:</b> ${esc(r.control)}</div>
+      const ctx=NFR.getContext(); const appIds=new Set(NFR.applicableRegulations(catalog, ctx).map(r=>r.id));
+      const all=ranked(); const byId={}; all.forEach(n=>byId[n.id]=n);
+      const showOff=host.querySelector("#showOff").checked; const total=catalog.regulations.length;
+      const activeCard=r=>`
+        <div class="nfr-card reg-active" style="border-left-color:var(--bad);margin-bottom:.6rem">
+          <div class="row"><div class="name">${esc(r.name)} — <span class="hint">${esc(r.full)}</span></div><span class="pill resolved" style="margin-left:auto">in scope</span></div>
+          <div class="kv" style="margin:.3rem 0"><b>Control reference:</b> ${esc(r.control)}${docLink(r)}</div>
           <div class="kv"><b>Makes mandatory:</b></div>
           <table class="tt"><tbody>${(r.drives||[]).map(id=>{const n=byId[id]; if(!n)return"";return `<tr><td><b>${esc(n.name)}</b></td><td>${sevChip(n.severity)}</td><td style="text-align:right">${esc((n.qa||{}).measure||"")}</td></tr>`;}).join("")}</tbody></table>
         </div>`;
-      let html=`<div class="hint" style="margin-bottom:.6rem">${regs.length} regulation${regs.length===1?"":"s"} in scope for this context.</div>`;
-      AREAS.forEach(([id,label])=>{ const inArea=regs.filter(r=>r.area===id); if(!inArea.length)return;
-        html+=`<h3>${esc(label)} <span class="hint">(${inArea.length})</span></h3>${inArea.map(card).join("")}`; });
-      const placed=new Set(AREAS.map(a=>a[0])); const rest=regs.filter(r=>!placed.has(r.area));
-      if(rest.length) html+=`<h3>Other</h3>${rest.map(card).join("")}`;
+      const offCard=r=>`
+        <div class="nfr-card reg-off" style="margin-bottom:.6rem">
+          <div class="row"><div class="name">${esc(r.name)} — <span class="hint">${esc(r.full)}</span></div><span class="pill off" style="margin-left:auto">not in scope</span></div>
+          <div class="kv" style="margin:.3rem 0"><b>Control reference:</b> ${esc(r.control)}${docLink(r)}</div>
+          <div class="kv"><b>Triggered when:</b> ${triggerText(r)||"—"}</div>
+          <div class="kv hint">Would make ${(r.drives||[]).length} NFR${(r.drives||[]).length===1?"":"s"} mandatory.</div>
+        </div>`;
+      const placed=new Set(AREAS.map(a=>a[0]));
+      const others=[...new Set(catalog.regulations.map(r=>r.area).filter(a=>!placed.has(a)))].map(a=>[a, a.charAt(0).toUpperCase()+a.slice(1)]);
+      let html=`<div class="hint" style="margin:.6rem 0"><b>${appIds.size}</b> of ${total} regulations in scope for this context.${appIds.size?"":" Set e.g. Region = EU + Data Sensitivity = pii (GDPR), or Data Sensitivity = pci (PCI-DSS), to bring some into scope."}</div>`;
+      [...AREAS, ...others].forEach(([id,label])=>{
+        const inArea=catalog.regulations.filter(r=>r.area===id); if(!inArea.length) return;
+        const active=inArea.filter(r=>appIds.has(r.id)), off=inArea.filter(r=>!appIds.has(r.id));
+        if(!active.length && (!showOff || !off.length)) return;
+        html+=`<h3>${esc(label)} <span class="hint">(${active.length} in scope${off.length?` · ${off.length} not`:""})</span></h3>`;
+        html+=active.map(activeCard).join("");
+        if(showOff) html+=off.map(offCard).join("");
+      });
       regsEl.innerHTML=html;
     }
+    host.querySelector("#showOff").addEventListener("change", render);
     render(); return { onContext: render };
   }
 

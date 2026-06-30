@@ -125,6 +125,34 @@
     journeyEl.querySelectorAll("button[data-go]").forEach(b => b.addEventListener("click", () => switchTo(b.dataset.go)));
   }
 
+  // readiness score panel — the "verdict", shown at the end (Export)
+  function paintScore(gaugeEl, scoreHint, scoreComps) {
+    const r = NFR.readiness(catalog, NFR.getContext());
+    const assessed = Object.keys(NFR.getMaturity()).length;
+    if (!assessed) {
+      const inScope = r.counts.relevant;
+      gaugeEl.style.background = `conic-gradient(var(--accent) ${Math.min(inScope, 20) / 20 * 360}deg, var(--code-bg) 0)`;
+      gaugeEl.innerHTML = `<div class="score-inner"><div class="score-num">${inScope}</div><div class="score-grade">in scope</div></div>`;
+      scoreHint.innerHTML = `<b>Provisional posture:</b> ${inScope} relevant NFR${inScope===1?"":"s"} · ${r.counts.mandatory} mandatory · ${r.counts.conflicts} trade-off${r.counts.conflicts===1?"":"s"} to resolve. The full <b>readiness score</b> computes once you <b>assess maturity</b> (tab 6 · Maturity &amp; Gaps); the compliance and trade-off components below are already in.`;
+    } else {
+      const gColor = r.score>=70?"var(--good)":r.score>=40?"var(--warn)":"var(--bad)";
+      gaugeEl.style.background = `conic-gradient(${gColor} ${r.score*3.6}deg, var(--code-bg) 0)`;
+      gaugeEl.innerHTML = `<div class="score-inner"><div class="score-num">${r.score}</div><div class="score-grade">grade ${r.grade}</div></div>`;
+      scoreHint.innerHTML = `<b>Score = Maturity×50% + Compliance×30% + Trade-offs×20%</b> (each 0–100). It rises as you assess <b>Maturity</b> and resolve <b>Trade-offs</b>.`;
+    }
+    const cc = r.counts;
+    const comps = [
+      ["Maturity", "50%", r.components.maturity, `avg current÷target across ${cc.relevant} relevant NFRs (unassessed counts as 0)`],
+      ["Compliance", "30%", r.components.compliance, cc.mandatory ? `avg maturity attainment across ${cc.mandatory} mandatory NFRs` : "no mandatory NFRs in scope → 100"],
+      ["Trade-offs", "20%", r.components.tradeoffs, cc.conflicts ? `${cc.resolved} of ${cc.conflicts} conflicts resolved` : "no conflicts in scope → 100"]
+    ];
+    scoreComps.innerHTML = comps.map(([l,w,v,ex])=>`
+      <div class="comp-row"><span class="comp-l">${l} <span class="comp-w">×${w}</span></span>
+        <span class="meter"><i style="width:${v}%;background:${v>=70?'var(--good)':v>=40?'var(--warn)':'var(--bad)'}"></i></span>
+        <span class="comp-v">${v}</span></div>
+      <div class="comp-ex">${ex}</div>`).join("");
+  }
+
   function switchTo(id) {
     activeId = id;
     viewEl.innerHTML = "";
@@ -149,13 +177,13 @@
     refreshJourney();
   }
   const TAB_HELP = {
-    overview: "Start here — your overall readiness score, what's in scope, and where the risks are.",
+    overview: "Start here — what's in scope, coverage by dimension, top risks, and your recommended next step.",
     applicable: "The ranked NFR backlog: which quality attributes apply to this system and why.",
     compliance: "Which laws & standards apply to this context, and the NFRs they make mandatory.",
     tradeoffs: "Where chosen NFRs conflict — decide which wins; each decision becomes an ADR.",
     scenarios: "Make each NFR testable: the SEI 6-part scenario with a quantified SLO.",
     maturity: "Score where you are vs target, and get a prioritized remediation roadmap.",
-    export: "Take it with you: nfrs.yaml, a governance spec, and trade-off ADRs."
+    export: "The verdict: your readiness score & grade, then nfrs.yaml, a governance spec, and trade-off ADRs."
   };
   tabsEl.innerHTML = VIEWS.map((v, i) => `<a href="#${v.id}" data-id="${v.id}" role="tab" aria-selected="false" tabindex="-1" title="${TAB_HELP[v.id] || ""}"><span class="step">${i + 1}</span>${v.label}</a>`).join("");
   tabsEl.querySelectorAll("a").forEach(a => a.addEventListener("click", e => { e.preventDefault(); switchTo(a.dataset.id); }));
@@ -212,14 +240,6 @@
   // ============================ OVERVIEW ============================
   function mountOverview(host) {
     host.innerHTML = `
-      <div class="panel score-panel" style="margin-bottom:1rem">
-        <div class="score-gauge" id="gauge"></div>
-        <div class="score-body">
-          <h2 style="margin:0">NFR Readiness Score</h2>
-          <p class="hint" id="scoreHint"></p>
-          <div id="scoreComps"></div>
-        </div>
-      </div>
       <details class="panel guide" id="guideDetails" style="margin-bottom:1rem">
         <summary><b>How this works</b> — the 7 tabs, in order</summary>
         <div id="guide"></div>
@@ -241,16 +261,15 @@
         <div class="panel"><h2>Open risks (unresolved trade-offs)</h2><div id="risks"></div></div>
       </div>`;
     const statsEl=host.querySelector("#stats"), regimesEl=host.querySelector("#regimes"), dimsEl=host.querySelector("#dims"), topEl=host.querySelector("#top"), risksEl=host.querySelector("#risks");
-    const gaugeEl=host.querySelector("#gauge"), scoreHint=host.querySelector("#scoreHint"), scoreComps=host.querySelector("#scoreComps");
     host.querySelector("#guide").innerHTML = [
       ["Set context (left)", "Describe the system once — domain, region, data, scale, criticality, AI. Everything reacts to it."],
-      ["1 · Overview", "This page: your readiness score, regulations in scope, coverage by dimension, and top risks."],
+      ["1 · Overview", "This page: what's in scope — regulations, coverage by dimension, top priorities, open risks — and your recommended next step."],
       ["2 · Applicable NFRs", "The ranked backlog of quality attributes that apply, with the rules that justify each."],
       ["3 · Compliance", "The laws/standards triggered by your context and the NFRs they make mandatory."],
       ["4 · Trade-offs", "Resolve conflicts between NFRs (e.g. latency vs consistency); decisions become ADRs."],
       ["5 · Scenarios", "Turn each NFR into a testable SEI 6-part scenario with a quantified SLO."],
       ["6 · Maturity & Gaps", "Rate current vs target maturity → gap heatmap → prioritized roadmap."],
-      ["7 · Export", "Generate nfrs.yaml, a governance spec, and trade-off ADRs."]
+      ["7 · Export", "The verdict — your readiness score & grade — then nfrs.yaml, a governance spec, and trade-off ADRs."]
     ].map(([t,d])=>`<div class="guide-row"><div class="guide-t">${t}</div><div class="hint">${d}</div></div>`).join("");
 
     const nextStepEl = host.querySelector("#nextStep");
@@ -259,30 +278,7 @@
     try { if (!localStorage.getItem("nfr-seen-guide")) { guideDetails.open = true; localStorage.setItem("nfr-seen-guide", "1"); } } catch (e) {}
 
     function render() {
-      const r = NFR.readiness(catalog, NFR.getContext());
       const assessed = Object.keys(NFR.getMaturity()).length;
-      if (!assessed) {
-        const inScope = r.counts.relevant;
-        gaugeEl.style.background = `conic-gradient(var(--accent) ${Math.min(inScope, 20) / 20 * 360}deg, var(--code-bg) 0)`;
-        gaugeEl.innerHTML = `<div class="score-inner"><div class="score-num">${inScope}</div><div class="score-grade">in scope</div></div>`;
-        scoreHint.innerHTML = `<b>Provisional posture:</b> ${inScope} relevant NFR${inScope===1?"":"s"} · ${r.counts.mandatory} mandatory · ${r.counts.conflicts} trade-off${r.counts.conflicts===1?"":"s"} to resolve. Your full <b>readiness score</b> appears once you <b>assess maturity</b> (tab 6 · Maturity &amp; Gaps); the compliance and trade-off components below are already computed.`;
-      } else {
-        const gColor = r.score>=70?"var(--good)":r.score>=40?"var(--warn)":"var(--bad)";
-        gaugeEl.style.background = `conic-gradient(${gColor} ${r.score*3.6}deg, var(--code-bg) 0)`;
-        gaugeEl.innerHTML = `<div class="score-inner"><div class="score-num">${r.score}</div><div class="score-grade">grade ${r.grade}</div></div>`;
-        scoreHint.innerHTML = `<b>Score = Maturity×50% + Compliance×30% + Trade-offs×20%</b> (each 0–100). It rises as you assess <b>Maturity</b> and resolve <b>Trade-offs</b>.`;
-      }
-      const cc = r.counts;
-      const comps = [
-        ["Maturity", "50%", r.components.maturity, `avg current÷target across ${cc.relevant} relevant NFRs (unassessed counts as 0)`],
-        ["Compliance", "30%", r.components.compliance, cc.mandatory ? `avg maturity attainment across ${cc.mandatory} mandatory NFRs` : "no mandatory NFRs in scope → 100"],
-        ["Trade-offs", "20%", r.components.tradeoffs, cc.conflicts ? `${cc.resolved} of ${cc.conflicts} conflicts resolved` : "no conflicts in scope → 100"]
-      ];
-      scoreComps.innerHTML = comps.map(([l,w,v,ex])=>`
-        <div class="comp-row"><span class="comp-l">${l} <span class="comp-w">×${w}</span></span>
-          <span class="meter"><i style="width:${v}%;background:${v>=70?'var(--good)':v>=40?'var(--warn)':'var(--bad)'}"></i></span>
-          <span class="comp-v">${v}</span></div>
-        <div class="comp-ex">${ex}</div>`).join("");
       const all = ranked();
       const relevant = all.filter(n=>n.tier!=="low"), high=all.filter(n=>n.tier==="high"), med=all.filter(n=>n.tier==="medium");
       const mandatory = all.filter(n=>n.mandatory);
@@ -618,6 +614,14 @@
   // ============================ EXPORT ============================
   function mountExport(host) {
     host.innerHTML = `
+      <div class="panel score-panel" style="margin-bottom:1rem">
+        <div class="score-gauge" id="gauge"></div>
+        <div class="score-body">
+          <h2 style="margin:0">NFR Readiness Score</h2>
+          <p class="hint" id="scoreHint"></p>
+          <div id="scoreComps"></div>
+        </div>
+      </div>
       <div class="panel" style="margin-bottom:1rem">
         <h2>Export</h2>
         <p class="hint"><b>nfrs.yaml</b> machine-readable (SLOs, compliance, maturity); <b>nfrs.md</b> the governance spec; <b>ADRs</b> the trade-off decisions.</p>
@@ -633,6 +637,7 @@
       </div>
       <pre class="export" id="out"></pre>`;
     const out=host.querySelector("#out"); let tab="yaml";
+    const gaugeEl=host.querySelector("#gauge"), scoreHint=host.querySelector("#scoreHint"), scoreComps=host.querySelector("#scoreComps");
     const yEsc=s=>/[:#{}\[\],&*?|<>=!%@`"']/.test(String(s))?JSON.stringify(s):s;
     function gather(){const ctx=NFR.getContext();const all=ranked();const rk=all.filter(n=>n.tier!=="low");const scenarios=NFR.getScenarios();const priorities=NFR.getPriorities();const mat=NFR.getMaturity();const owners=NFR.getOwners();const conflicts=NFR.activeConflicts(all,"medium");const regs=NFR.applicableRegulations(catalog,ctx);const rationales=NFR.getRationales();rk.forEach(n=>{n.scenario=scenarios[n.id]||n.qa;n.cur=(typeof mat[n.id]==="number")?mat[n.id]:0;n.tgt=NFR.targetMaturity(n.tier);n.gap=Math.max(0,n.tgt-n.cur);n.owner=owners[n.id]||"";});return {ctx,rk,conflicts,priorities,rationales,regs};}
     function toYaml(){const {ctx,rk,conflicts,priorities,rationales,regs}=gather();let y="# Generated by NFR Advisor — ISO/IEC 25010, arc42 Q42, ATAM/SEI scenarios\ncontext:\n";Object.keys(ctx).forEach(k=>y+=`  ${k}: ${yEsc(String(ctx[k]))}\n`);
@@ -668,6 +673,7 @@
     const impFile=host.querySelector("#impStateFile");
     host.querySelector("#impStateBtn").addEventListener("click",()=>impFile.click());
     impFile.addEventListener("change",()=>{const f=impFile.files&&impFile.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{let ok=false;try{ok=NFR.importState(JSON.parse(r.result));}catch(e){}if(ok)location.reload();else alert("Could not import: not a valid NFR Advisor state file.");};r.readAsText(f);});
-    render(); return { onContext: render };
+    function refreshAll(){ paintScore(gaugeEl, scoreHint, scoreComps); render(); }
+    refreshAll(); return { onContext: refreshAll };
   }
 })();

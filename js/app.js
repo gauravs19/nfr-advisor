@@ -59,6 +59,72 @@
       <div class="hint">Catalog: ${secs}</div>`;
   }
 
+  // ---------- live posture → "what changed" toast ----------
+  function posture() {
+    const all = ranked();
+    return {
+      relevant: all.filter(n => n.tier !== "low").length,
+      mandatory: all.filter(n => n.mandatory).length,
+      conflicts: NFR.activeConflicts(all, "medium").length,
+      regs: NFR.applicableRegulations(catalog, NFR.getContext()).map(r => r.name)
+    };
+  }
+  let lastPosture = posture();
+  function diffPosture(prev, now) {
+    const msgs = [];
+    const dRel = now.relevant - prev.relevant;
+    if (dRel) msgs.push(`${dRel > 0 ? "+" : ""}${dRel} relevant NFR${Math.abs(dRel) === 1 ? "" : "s"}`);
+    now.regs.filter(r => !prev.regs.includes(r)).forEach(r => msgs.push(`${r} now applies`));
+    prev.regs.filter(r => !now.regs.includes(r)).forEach(r => msgs.push(`${r} no longer applies`));
+    const dConf = now.conflicts - prev.conflicts;
+    if (dConf) msgs.push(`${dConf > 0 ? "+" : ""}${dConf} trade-off${Math.abs(dConf) === 1 ? "" : "s"}`);
+    return msgs;
+  }
+  let toastTimer = null;
+  function showToast(msgs) {
+    if (!msgs || !msgs.length) return;
+    let el = document.getElementById("toast");
+    if (!el) { el = document.createElement("div"); el.id = "toast"; el.className = "toast"; document.body.appendChild(el); }
+    el.innerHTML = msgs.map(m => `<span>${esc(m)}</span>`).join("");
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove("show"), 3200);
+  }
+
+  // ---------- journey progress strip ----------
+  const journeyEl = document.getElementById("journey");
+  function refreshJourney() {
+    if (!journeyEl) return;
+    const all = ranked();
+    const relevant = all.filter(n => n.tier !== "low");
+    const conflicts = NFR.activeConflicts(all, "medium");
+    const pr = NFR.getPriorities();
+    const resolved = conflicts.filter(e => pr[e.key]).length;
+    const mat = NFR.getMaturity(), scen = NFR.getScenarios();
+    const R = relevant.length;
+    const assessed = relevant.filter(n => typeof mat[n.id] === "number").length;
+    const edited = relevant.filter(n => scen[n.id]).length;
+    const regs = NFR.applicableRegulations(catalog, NFR.getContext()).length;
+    const tradeDone = conflicts.length === 0 || resolved === conflicts.length;
+    const matDone = R > 0 && assessed === R;
+    const steps = [
+      { id: "overview",   label: "Overview",   note: "",                                          state: "info" },
+      { id: "applicable", label: "NFRs",       note: `${R}`,                                       state: R ? "done" : "todo" },
+      { id: "compliance", label: "Compliance", note: `${regs}`,                                    state: "info" },
+      { id: "tradeoffs",  label: "Trade-offs", note: conflicts.length ? `${resolved}/${conflicts.length}` : "0", state: !R ? "todo" : (tradeDone ? "done" : "partial") },
+      { id: "scenarios",  label: "Scenarios",  note: `${edited}/${R}`,                             state: !R ? "todo" : (edited === R && R ? "done" : (edited ? "partial" : "todo")) },
+      { id: "maturity",   label: "Maturity",   note: `${assessed}/${R}`,                           state: !R ? "todo" : (matDone ? "done" : (assessed ? "partial" : "todo")) },
+      { id: "export",     label: "Export",     note: "",                                           state: (matDone && tradeDone && R) ? "done" : "todo" }
+    ];
+    const ICON = { done: "✓", partial: "◐", todo: "○", info: "•" };
+    journeyEl.innerHTML = steps.map((s, i) =>
+      `<button class="jstep ${s.state}${s.id === activeId ? " active" : ""}" data-go="${s.id}">
+        <span class="jnum">${i + 1}</span><span class="jicon" aria-hidden="true">${ICON[s.state]}</span>
+        <span class="jlabel">${esc(s.label)}</span>${s.note ? `<span class="jnote">${esc(s.note)}</span>` : ""}</button>`
+    ).join("");
+    journeyEl.querySelectorAll("button[data-go]").forEach(b => b.addEventListener("click", () => switchTo(b.dataset.go)));
+  }
+
   function switchTo(id) {
     activeId = id;
     viewEl.innerHTML = "";
@@ -80,6 +146,7 @@
       (next ? `<button class="btn" data-go="${next.id}">${esc(next.label)} →</button>` : `<span></span>`);
     viewEl.appendChild(nav);
     nav.querySelectorAll("button[data-go]").forEach(b => b.addEventListener("click", () => { switchTo(b.dataset.go); window.scrollTo({ top: 0, behavior: "smooth" }); }));
+    refreshJourney();
   }
   const TAB_HELP = {
     overview: "Start here — your overall readiness score, what's in scope, and where the risks are.",
@@ -113,7 +180,14 @@
     { name: "Gen-AI startup", context: { domain: "saas-b2b", region: "eu", dataSensitivity: "pii", aiUsage: "genai", userScale: "1k-100k", lifecycleStage: "mvp", systemCriticality: "tier-2", budget: "lean", architectureStyle: "serverless" } },
     { name: "Internal tool", context: { domain: "internal-tool", region: "global", dataSensitivity: "internal", userType: "internal", availabilityTarget: "99.9", systemCriticality: "tier-3", budget: "lean", aiUsage: "none" } }
   ];
-  UI.renderContextRail(railEl, catalog, () => { if (current && current.onContext) current.onContext(); }, PROFILES);
+  function onContextChange() {
+    const now = posture();
+    showToast(diffPosture(lastPosture, now));
+    lastPosture = now;
+    if (current && current.onContext) current.onContext();
+    refreshJourney();
+  }
+  UI.renderContextRail(railEl, catalog, onContextChange, PROFILES);
 
   const themeBtn = document.getElementById("themeToggle");
   function applyThemeIcon() { themeBtn.textContent = (document.documentElement.getAttribute("data-theme") === "light") ? "🌙 Dark" : "☀ Light"; }
@@ -188,9 +262,10 @@
       const r = NFR.readiness(catalog, NFR.getContext());
       const assessed = Object.keys(NFR.getMaturity()).length;
       if (!assessed) {
-        gaugeEl.style.background = `conic-gradient(var(--line) 0deg, var(--code-bg) 0)`;
-        gaugeEl.innerHTML = `<div class="score-inner"><div class="score-num" style="font-size:1.5rem;color:var(--muted)">—</div><div class="score-grade">not assessed</div></div>`;
-        scoreHint.innerHTML = `Your readiness score appears once you <b>assess maturity</b> (tab 6 · Maturity &amp; Gaps). The compliance and trade-off components below are already computed from your context.`;
+        const inScope = r.counts.relevant;
+        gaugeEl.style.background = `conic-gradient(var(--accent) ${Math.min(inScope, 20) / 20 * 360}deg, var(--code-bg) 0)`;
+        gaugeEl.innerHTML = `<div class="score-inner"><div class="score-num">${inScope}</div><div class="score-grade">in scope</div></div>`;
+        scoreHint.innerHTML = `<b>Provisional posture:</b> ${inScope} relevant NFR${inScope===1?"":"s"} · ${r.counts.mandatory} mandatory · ${r.counts.conflicts} trade-off${r.counts.conflicts===1?"":"s"} to resolve. Your full <b>readiness score</b> appears once you <b>assess maturity</b> (tab 6 · Maturity &amp; Gaps); the compliance and trade-off components below are already computed.`;
       } else {
         const gColor = r.score>=70?"var(--good)":r.score>=40?"var(--warn)":"var(--bad)";
         gaugeEl.style.background = `conic-gradient(${gColor} ${r.score*3.6}deg, var(--code-bg) 0)`;
@@ -262,7 +337,7 @@
     host.innerHTML = `
       <div class="panel">
         <h2>Applicable NFRs</h2>
-        <p class="hint">Grouped by ISO/IEC 25010 dimension and ranked within each. <span class="mand">MANDATORY</span> = required by a regulation in scope. Click an NFR to expand the full enterprise detail — including the <b>signals &amp; alerts</b> that verify it in production (mapped to the <a href="https://github.com/gauravs19/cloud-native-observability" target="_blank" rel="noopener">cloud-native observability catalog</a>).</p>
+        <p class="hint">Grouped by <abbr class="term" title="ISO/IEC 25010 — the international product-quality standard; its 9 quality characteristics are the dimensions used to group NFRs here.">ISO/IEC 25010</abbr> dimension and ranked within each. <span class="mand">MANDATORY</span> = required by a regulation in scope. Click an NFR to expand the full enterprise detail — including the <b>signals &amp; alerts</b> that verify it in production (mapped to the <a href="https://github.com/gauravs19/cloud-native-observability" target="_blank" rel="noopener">cloud-native observability catalog</a>).</p>
         <div class="toolbar">
           <input type="text" id="q" class="grow" placeholder="Filter by name / alias…">
           <select id="cat"><option value="">All dimensions</option>${catalog.categories.map(c=>`<option value="${c.id}">${esc(c.label)}</option>`).join("")}</select>
@@ -289,7 +364,7 @@
         <div class="iso-crumb">ISO/IEC 25010: ${isoCrumb(n.iso)}</div>
         ${n.businessImpact?`<h4>Business impact if not met</h4><div class="hint">${esc(n.businessImpact)}</div>`:""}
         ${(n.regs&&n.regs.length)?`<h4>Compliance drivers</h4><div>${regChips(n.regs)}</div>`:""}
-        <h4>Quality attribute scenario (SEI 6-part)</h4>
+        <h4>Quality attribute scenario (<abbr class="term" title="SEI 6-part quality-attribute scenario: source · stimulus · artifact · environment · response · response measure — a precise, testable way to state a quality requirement.">SEI 6-part</abbr>)</h4>
         <div class="qa-grid">
           <dt>Source</dt><dd>${esc(qa.source||"—")}</dd>
           <dt>Stimulus</dt><dd>${esc(qa.stimulus||"—")}</dd>
@@ -396,7 +471,7 @@
           else if(r==="reinforce"){html+=`<td class="reinforce" title="reinforces">+</td>`;} else html+=`<td></td>`; });
         html+=`</tr>`; });
       html+=`</tbody></table>`; matrixWrap.innerHTML=html;
-      matrixWrap.querySelectorAll("td.conflict").forEach(td=>td.addEventListener("click",()=>{NFR.setPriority(keyOf(td.dataset.row,td.dataset.col),td.dataset.row);render();}));
+      matrixWrap.querySelectorAll("td.conflict").forEach(td=>td.addEventListener("click",()=>{NFR.setPriority(keyOf(td.dataset.row,td.dataset.col),td.dataset.row);render();refreshJourney();}));
       const conflicts=NFR.activeConflicts(ranked(),"medium");
       if(!conflicts.length){listEl.innerHTML=`<p class="hint">No active conflicts for this context.</p>`;return;}
       listEl.innerHTML=`<table class="tt"><thead><tr><th>Trade-off</th><th>Tension</th><th>Decision</th></tr></thead><tbody>`+
@@ -404,7 +479,7 @@
           return `<tr><td><b>${esc(e.a.name)}</b> ↔ <b>${esc(e.b.name)}</b><br>${st}</td><td class="hint">${esc(tension(e.a.id,e.b.id))}</td>
             <td><button class="btn ${w===e.a.id?'':'secondary'}" data-key="${e.key}" data-win="${e.a.id}">${esc(e.a.name)}</button>
             <button class="btn ${w===e.b.id?'':'secondary'}" data-key="${e.key}" data-win="${e.b.id}">${esc(e.b.name)}</button></td></tr>`;}).join("")+`</tbody></table>`;
-      listEl.querySelectorAll("button[data-key]").forEach(b=>b.addEventListener("click",()=>{NFR.setPriority(b.dataset.key,b.dataset.win);render();}));
+      listEl.querySelectorAll("button[data-key]").forEach(b=>b.addEventListener("click",()=>{NFR.setPriority(b.dataset.key,b.dataset.win);render();refreshJourney();}));
     }
     render(); return { onContext: render };
   }
@@ -424,7 +499,7 @@
           ${FIELDS.map(([f,lbl])=>`<div class="control"><label>${lbl}</label><input type="text" data-id="${n.id}" data-f="${f}" value="${esc(s[f]||"")}"></div>`).join("")}
           <div class="kv">Fitness function: <span class="mono">${esc(n.fitnessFunction)}</span></div></div>`;}).join("");
       wrap.querySelectorAll("input[data-id]").forEach(inp=>inp.addEventListener("change",()=>{
-        const id=inp.dataset.id,f=inp.dataset.f; const cur=NFR.getScenarios()[id]||Object.assign({},(catalog.nfrs.find(x=>x.id===id)||{}).qa); cur[f]=inp.value; NFR.setScenario(id,cur);}));
+        const id=inp.dataset.id,f=inp.dataset.f; const cur=NFR.getScenarios()[id]||Object.assign({},(catalog.nfrs.find(x=>x.id===id)||{}).qa); cur[f]=inp.value; NFR.setScenario(id,cur);refreshJourney();}));
     }
     render(); return { onContext: render };
   }
@@ -451,7 +526,7 @@
             <td><select data-mat="${n.id}">${opts}</select></td>
             <td><span class="gap-bar"><i style="width:${gap/5*100}%;background:${gap>=3?'var(--bad)':gap>=1?'var(--warn)':'var(--good)'}"></i></span> ${gap}</td>
             <td><input type="text" data-owner="${n.id}" value="${esc(owners[n.id]||"")}" placeholder="team / owner" style="width:120px"></td></tr>`;}).join("")+`</tbody></table>`;
-      matTable.querySelectorAll("select[data-mat]").forEach(s=>s.addEventListener("change",()=>{NFR.setMaturity(s.dataset.mat,parseInt(s.value,10));render();}));
+      matTable.querySelectorAll("select[data-mat]").forEach(s=>s.addEventListener("change",()=>{NFR.setMaturity(s.dataset.mat,parseInt(s.value,10));render();refreshJourney();}));
       matTable.querySelectorAll("input[data-owner]").forEach(i=>i.addEventListener("change",()=>{NFR.setOwner(i.dataset.owner,i.value);}));
 
       const road=rk.map(n=>{const cur=(typeof mat[n.id]==="number")?mat[n.id]:0;const gap=Math.max(0,NFR.targetMaturity(n.tier)-cur);return {n,gap,prio:(n.mandatory?100:0)+gap*(sevRank[n.severity]||1)};})

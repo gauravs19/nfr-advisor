@@ -2,11 +2,14 @@
 (function (global) {
   "use strict";
 
-  // logical groupings for the context dimensions (ids must match the catalog)
+  // logical groupings for the context dimensions (ids must match the catalog).
+  // "Essentials" is open by default; the rest start collapsed so a first-time
+  // user sets the 5 high-impact dimensions, gets a result, then drills in.
   const GROUPS = [
-    { title: "Business & domain", dims: ["domain", "region", "publicSector", "userType", "lifecycleStage"] },
-    { title: "Scale & performance", dims: ["userScale", "latencySensitivity", "availabilityTarget", "systemCriticality"] },
-    { title: "Data & compliance", dims: ["dataSensitivity", "dataResidency"] },
+    { title: "Essentials", open: true, dims: ["domain", "region", "dataSensitivity", "systemCriticality", "userScale"] },
+    { title: "Business & domain", dims: ["publicSector", "userType", "lifecycleStage"] },
+    { title: "Scale & performance", dims: ["latencySensitivity", "availabilityTarget"] },
+    { title: "Data & residency", dims: ["dataResidency"] },
     { title: "Architecture & delivery", dims: ["architectureStyle", "deployment", "teamMaturity", "budget"] },
     { title: "AI / ML", dims: ["aiUsage"] }
   ];
@@ -37,13 +40,13 @@
       const dims = g.dims.map(id => byId[id]).filter(Boolean);
       if (!dims.length) return;
       dims.forEach(d => used.add(d.id));
-      html += `<div class="rail-group"><div class="rail-group-head" data-grp="${gi}"><span class="chev">▾</span>${g.title}</div>
+      html += `<div class="rail-group${g.open ? "" : " collapsed"}"><div class="rail-group-head" data-grp="${gi}"><span class="chev">▾</span>${g.title}</div>
         <div class="rail-group-body">${dims.map(d => dimControl(d, ctx)).join("")}</div></div>`;
     });
-    // any dimension not placed in a group falls into "Other"
+    // any dimension not placed in a group falls into "Other" (collapsed)
     const leftovers = catalog.contextDimensions.filter(d => !used.has(d.id));
     if (leftovers.length) {
-      html += `<div class="rail-group"><div class="rail-group-head" data-grp="other"><span class="chev">▾</span>Other</div>
+      html += `<div class="rail-group collapsed"><div class="rail-group-head" data-grp="other"><span class="chev">▾</span>Other</div>
         <div class="rail-group-body">${leftovers.map(d => dimControl(d, ctx)).join("")}</div></div>`;
     }
     host.innerHTML = html;

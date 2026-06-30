@@ -2,7 +2,11 @@
 
 An interactive, structured advisor for **non-functional requirements (NFRs)**. It takes a system's **context** → ranks the **applicable quality attributes** → surfaces **trade-offs** → turns them into **measurable scenarios** → and exports an **as-code NFR spec + ADRs**.
 
+<!-- walkthrough GIF hidden for now (asset kept at docs/journey.gif)
 ![NFR Advisor walkthrough — load a profile, see ranked NFRs and the rules behind them, the observability signals that verify each one, resolve trade-offs in the decision popover, rate maturity, and watch the readiness score and as-code export come together](docs/journey.gif)
+
+*The full journey: set context once → ranked NFRs (with the signals & alerts that verify them) → compliance → trade-off decisions → scenarios → maturity → readiness score & as-code export.*
+-->
 
 *The full journey: set context once → ranked NFRs (with the signals & alerts that verify them) → compliance → trade-off decisions → scenarios → maturity → readiness score & as-code export.*
 

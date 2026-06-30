@@ -1,6 +1,33 @@
 {
   "version": "2.0",
     "observabilityRepo": "https://github.com/gauravs19/cloud-native-observability",
+    "regulationDocs": {
+      "gdpr": "https://eur-lex.europa.eu/eli/reg/2016/679/oj",
+      "ccpa": "https://oag.ca.gov/privacy/ccpa",
+      "lgpd": "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709.htm",
+      "pipeda": "https://www.priv.gc.ca/en/privacy-topics/privacy-laws-in-canada/the-personal-information-protection-and-electronic-documents-act-pipeda/",
+      "dpdp": "https://www.meity.gov.in/content/digital-personal-data-protection-act-2023",
+      "pci_dss": "https://www.pcisecuritystandards.org/document_library/",
+      "sox": "https://www.govinfo.gov/app/details/PLAW-107publ204",
+      "psd2": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32015L2366",
+      "mifid2": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX%3A32014L0065",
+      "dora": "https://eur-lex.europa.eu/eli/reg/2022/2554/oj",
+      "hipaa": "https://www.hhs.gov/hipaa/index.html",
+      "hitech": "https://www.hhs.gov/hipaa/for-professionals/special-topics/hitech-act-enforcement-interim-final-rule/index.html",
+      "fda_21cfr11": "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-A/part-11",
+      "iec62304": "https://www.iso.org/standard/38421.html",
+      "eu_ai_act": "https://eur-lex.europa.eu/eli/reg/2024/1689/oj",
+      "iso42001": "https://www.iso.org/standard/81230.html",
+      "nist_ai_rmf": "https://www.nist.gov/itl/ai-risk-management-framework",
+      "nist_csf": "https://www.nist.gov/cyberframework",
+      "iso27001": "https://www.iso.org/standard/27001",
+      "soc2": "https://www.aicpa-cima.com/resources/landing/system-and-organization-controls-soc-suite-of-services",
+      "owasp_asvs": "https://owasp.org/www-project-application-security-verification-standard/",
+      "fedramp": "https://www.fedramp.gov/",
+      "wcag_eaa": "https://www.w3.org/WAI/standards-guidelines/wcag/",
+      "ada_508": "https://www.section508.gov/",
+      "iso22301": "https://www.iso.org/standard/75106.html"
+    },
     "observabilitySections": {
       "01": {
         "label": "Frontend / Client (RUM)",
